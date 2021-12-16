@@ -13,16 +13,17 @@ import java.util.stream.Collectors;
 
 /*
  * The sample class creates a default test configuration file for the OAS file provided as input (or, as a default, for "src/test/resources/Comments/swagger.yaml")
- * 
+ *
  */
 
 public class CreateTestConf {
 
     private static final Logger log = LogManager.getLogger(CreateTestConf.class);
-    private static String openApiSpecPath = "src/test/resources/Folder/openapi.yaml";			                                // OAS file path
+    private static String openApiSpecPath = "src/test/resources/zycus_new/swagger.yaml";			// OAS file path
+    //private static String openApiSpecPath = "https://swagger-ui.zycus.net/api/swagger.json";
     private static String confPath;																// Test configuration path
 
-    
+
     /*
      * This main method can receive two types of arguments (optional):
      * 		1. Path of the OAS specification file for which the test configuration file will be generated
@@ -30,37 +31,37 @@ public class CreateTestConf {
      */
     public static void main(String[] args) {
 
-    	List<TestConfigurationFilter> filters=null;
-    	
-    	// Read input OAS specification file path (if any)
+        List<TestConfigurationFilter> filters=null;
+
+        // Read input OAS specification file path (if any)
         if(args.length > 1) {				// Read input OAS specification file path and filters
             openApiSpecPath = args[0];
             filters = generateFilters(Arrays.copyOfRange(args,1, args.length));
         } else if (args.length == 1)		// Read input OAS specification file
-        	openApiSpecPath = args[0];
+            openApiSpecPath = args[0];
 
         // Generate target path if it does not exist
         generateTestConfPath();
 
         // Load OAS specification
         OpenAPISpecification spec = new OpenAPISpecification(openApiSpecPath);
-        
+
         // Create test configuration generator
         DefaultTestConfigurationGenerator gen = new DefaultTestConfigurationGenerator(spec);
 
         // Generate test configuration file
         if (filters!=null)
-        	gen.generate(confPath, filters);
+            gen.generate(confPath, filters);
         else
-        	gen.generate(confPath);
-        
+            gen.generate(confPath);
+
 
         log.info("Test configuration file generated in path {}", confPath);
 
     }
 
     /*
-     * Generate test configuration filters from the information provided in the list of arguments. 
+     * Generate test configuration filters from the information provided in the list of arguments.
      * Each filter must follow the format "path:httpmethod".
      */
     private static List<TestConfigurationFilter> generateFilters(String[] filtersArr) {
@@ -113,4 +114,11 @@ public class CreateTestConf {
         int end = sp[sp.length-1].isEmpty()? sp.length-2 : sp.length-1;
         confPath = Arrays.stream(sp, 0, end).collect(Collectors.joining("/", "", "/testConf.yaml"));
     }
+
+    public static String generateExternalTestDataPath() {
+        String[] sp = openApiSpecPath.split("/");
+        int end = sp[sp.length-1].isEmpty()? sp.length-2 : sp.length-1;
+        return Arrays.stream(sp, 0, end).collect(Collectors.joining("/", "", "/testdata/"));
+    }
+
 }
