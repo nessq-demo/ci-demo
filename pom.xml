@@ -1,14 +1,52 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>es.us.isa</groupId>
 	<artifactId>restest</artifactId>
-	<version>1.2.1-SNAPSHOT</version>
+	<version>1.0.1-SNAPSHOT</version>
 	<packaging>jar</packaging>
 
 	<name>RESTest</name>
 	<description>A framework for automated black-box testing of RESTful web APIs</description>
 	<url>https://github.com/isa-group/RESTest</url>
+	<repositories>
+		<repository>
+			<id>zycus.docket</id>
+			<url>http://10.95.4.152/repository/zycus.docket</url>
+		</repository>
+		<repository>
+			<id>zycus.products</id>
+			<url>http://10.95.4.152/repository/zycus.products</url>
+		</repository>
+		<repository>
+			<id>local.zycus.docket</id>
+			<url>http://artifactrepo.zycus.net/nexus/repository/zycus.docket</url>
+		</repository>
+		<repository>
+			<id>aws.zycus.docket</id>
+			<url>http://artifact.zycus.net/repository/zycus.docket</url>
+		</repository>
+		<repository>
+			<id>local.zycus.snapshot</id>
+			<url>http://artifactrepo.zycus.net/nexus/repository/ZycusProductSnapShots/</url>
+		</repository>
+		<repository>
+			<id>local.zycus.dependencies-snapshots</id>
+			<url>http://artifactrepo.zycus.net/nexus/repository/zycus.dependencies-snapshots/</url>
+		</repository>
+		<repository>
+			<id>local.zycus.dependencies</id>
+			<url>http://artifactrepo.zycus.net/nexus/repository/zycus.dependencies/</url>
+		</repository>
+		<repository>
+			<id>maven.central</id>
+			<url>https://repo1.maven.org/maven2/</url>
+		</repository>
+
+	</repositories>
+
 
 	<licenses>
 		<license>
@@ -73,32 +111,8 @@
 		<connection>scm:git:https://github.com/isa-group/RESTest.git</connection>
 		<developerConnection>scm:git:https://github.com/isa-group/RESTest.git</developerConnection>
 		<url>https://github.com/isa-group/RESTest/tree/master</url>
-	  <tag>HEAD</tag>
-  </scm>
-
-	<profiles>
-		<profile>
-			<id>sign</id>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-gpg-plugin</artifactId>
-						<version>1.6</version>
-						<executions>
-							<execution>
-								<id>sign-artifacts</id>
-								<phase>verify</phase>
-								<goals>
-									<goal>sign</goal>
-								</goals>
-							</execution>
-						</executions>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-	</profiles>
+		<tag>HEAD</tag>
+	</scm>
 
 	<distributionManagement>
 		<snapshotRepository>
@@ -119,9 +133,8 @@
 		<maven.compiler.target>1.8</maven.compiler.target>
 		<aspectj.version>1.9.5</aspectj.version>
 		<jmetal.version>5.9</jmetal.version>
-		<swagger.version>2.1.10</swagger.version>
-<!--		<swaggerparser.version>2.0.27</swaggerparser.version>-->
-		<openapivalidator.version>2.18.1</openapivalidator.version>
+		<swagger.version>2.1.7</swagger.version>
+		<openapivalidator.version>2.11.0</openapivalidator.version>
 		<restassured.version>4.2.0</restassured.version>
 		<jackson.version>2.11.4</jackson.version>
 		<allure.version>2.13.3</allure.version>
@@ -129,10 +142,35 @@
 		<sonar.projectKey>isa-group_RESTest</sonar.projectKey>
 		<sonar.organization>isa-group</sonar.organization>
 		<sonar.host.url>https://sonarcloud.io</sonar.host.url>
+		<junit.jupiter.version>5.8.1</junit.jupiter.version>
+    <junit.platform.version>1.8.1</junit.platform.version>
+
 		<argLine />
 	</properties>
 
+
 	<dependencies>
+
+		<!-- https://mvnrepository.com/artifact/com.jayway.jsonpath/json-path -->
+		<dependency>
+			<groupId>com.jayway.jsonpath</groupId>
+			<artifactId>json-path</artifactId>
+			<version>2.6.0</version>
+		</dependency>
+
+		<!-- https://mvnrepository.com/artifact/org.apache.httpcomponents/httpclient -->
+		<dependency>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>httpclient</artifactId>
+			<version>4.5.13</version>
+		</dependency>
+
+		<!-- https://mvnrepository.com/artifact/org.apache.httpcomponents/httpcore -->
+		<dependency>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>httpcore</artifactId>
+			<version>4.4.14</version>
+		</dependency>
 
 		<!-- SWAGGER DEPENDENCIES -->
 		<!-- https://mvnrepository.com/artifact/io.swagger.core.v3/swagger-core -->
@@ -141,12 +179,6 @@
 			<artifactId>swagger-core</artifactId>
 			<version>${swagger.version}</version>
 		</dependency>
-
-<!--		<dependency>-->
-<!--			<groupId>io.swagger.parser.v3</groupId>-->
-<!--			<artifactId>swagger-parser</artifactId>-->
-<!--			<version>${swaggerparser.version}</version>-->
-<!--		</dependency>-->
 
 
 		<!-- OPENAPI VALIDATOR DEPENDENCIES -->
@@ -210,6 +242,31 @@
 			<version>4.13.1</version>
 		</dependency>
 
+ 	<!--   <dependency>
+        <groupId>org.junit.jupiter</groupId>
+        <artifactId>junit-jupiter-engine</artifactId>
+        <version>${junit.jupiter.version}</version>
+        <scope>test</scope>
+    </dependency>
+    <dependency>
+        <groupId>org.junit.jupiter</groupId>
+        <artifactId>junit-jupiter-api</artifactId>
+        <version>${junit.jupiter.version}</version>
+        <scope>test</scope>
+    </dependency>
+    <dependency>
+        <groupId>org.junit.jupiter</groupId>
+        <artifactId>junit-jupiter-params</artifactId>
+        <version>${junit.jupiter.version}</version>
+        <scope>test</scope>
+    </dependency>
+    <dependency>
+        <groupId>org.junit.platform</groupId>
+        <artifactId>junit-platform-suite</artifactId>
+        <version>${junit.platform.version}</version>
+        <scope>test</scope>
+    </dependency>
+ -->
 		<!-- Allure Junit 4 -->
 		<dependency>
 			<groupId>io.qameta.allure</groupId>
@@ -296,23 +353,25 @@
 		</dependency>
 
 		<!-- Apache log4j2 API -->
+		<!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-api -->
 		<dependency>
 			<groupId>org.apache.logging.log4j</groupId>
 			<artifactId>log4j-api</artifactId>
-			<version>2.13.3</version>
+			<version>2.15.0</version>
 		</dependency>
 
-		<!-- Apache log4j2 core -->
+		<!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-core -->
 		<dependency>
 			<groupId>org.apache.logging.log4j</groupId>
 			<artifactId>log4j-core</artifactId>
-			<version>2.13.3</version>
+			<version>2.15.0</version>
 		</dependency>
 
+		<!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-iostreams -->
 		<dependency>
 			<groupId>org.apache.logging.log4j</groupId>
 			<artifactId>log4j-iostreams</artifactId>
-			<version>2.13.3</version>
+			<version>2.15.0</version>
 		</dependency>
 
 		<!-- Java tuples -->
@@ -332,113 +391,112 @@
 		<!-- IDLreasoner dependency -->
 		<dependency>
 			<groupId>es.us.isa</groupId>
-			<artifactId>idlreasoner-choco</artifactId>
-			<version>1.0.0</version>
+			<artifactId>idl-reasoner</artifactId>
+			<version>0.0.1</version>
 		</dependency>
 
 		<!-- IDL dependency -->
 		<dependency>
 			<groupId>es.us.isa</groupId>
-			<artifactId>idl-choco</artifactId>
-			<version>1.0.0</version>
+			<artifactId>idl</artifactId>
+			<version>0.0.1</version>
 		</dependency>
 
-		<!-- RG++ -->
+		<!-- https://mvnrepository.com/artifact/com.googlecode.json-simple/json-simple -->
 		<dependency>
-			<groupId>es.us.isa</groupId>
-			<artifactId>MaleRegexTree</artifactId>
-			<version>1.0.0</version>
-		</dependency>
-
-		<dependency>
-			<groupId>es.us.isa</groupId>
-			<artifactId>RandomRegexTurtle</artifactId>
-			<version>1.0.0</version>
-		</dependency>
-
-		<!-- Jena -->
-		<dependency>
-			<groupId>org.apache.jena</groupId>
-			<artifactId>apache-jena-libs</artifactId>
-			<version>3.17.0</version>
-			<type>pom</type>
-		</dependency>
-
-
-		<!-- https://mvnrepository.com/artifact/edu.stanford.nlp/stanford-corenlp -->
-		<!-- Stanford NLP -->
-		<dependency>
-			<groupId>edu.stanford.nlp</groupId>
-			<artifactId>stanford-corenlp</artifactId>
-			<version>4.2.2</version>
-		</dependency>
-		
-		<dependency>
-			<groupId>edu.stanford.nlp</groupId>
-			<artifactId>stanford-corenlp</artifactId>
-			<version>4.2.2</version>
-			<classifier>models</classifier>
-		</dependency>
-		
-		<dependency>
-			<groupId>edu.stanford.nlp</groupId>
-			<artifactId>stanford-corenlp</artifactId>
-			<version>4.2.2</version>
-			<classifier>models-english</classifier>
-		</dependency>
-		
-		<dependency>
-			<groupId>edu.stanford.nlp</groupId>
-			<artifactId>stanford-corenlp</artifactId>
-			<version>4.2.2</version>
-			<classifier>models-english-kbp</classifier>
+			<groupId>com.googlecode.json-simple</groupId>
+			<artifactId>json-simple</artifactId>
+			<version>1.1.1</version>
 		</dependency>
 
 		<dependency>
-			<groupId>edu.stanford.nlp</groupId>
-			<artifactId>stanford-parser</artifactId>
-			<version>3.9.2</version>
+			<groupId>org.json</groupId>
+			<artifactId>json</artifactId>
+			<version>20210307</version>
+		</dependency>
+
+		<!-- POI -->
+		<dependency>
+			<groupId>org.apache.poi</groupId>
+			<artifactId>poi</artifactId>
+			<version>3.9</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.poi</groupId>
+			<artifactId>poi-ooxml</artifactId>
+			<version>3.6</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.poi</groupId>
+			<artifactId>poi-ooxml-schemas</artifactId>
+			<version>3.6</version>
+		</dependency>
+		<dependency>
+			<groupId>dom4j</groupId>
+			<artifactId>dom4j</artifactId>
+			<version>1.1</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.xmlbeans</groupId>
+			<artifactId>xmlbeans</artifactId>
+			<version>2.3.0</version>
+		</dependency>
+		<dependency>
+			<groupId>mysql</groupId>
+			<artifactId>mysql-connector-java</artifactId>
+			<version>8.0.23</version>
 		</dependency>
 
 	</dependencies>
 
 	<build>
+		<resources>
+			<resource>
+				<directory>src/main/resources</directory>
+				<includes>
+					<include>**/*</include>
+				</includes>
+			</resource>
+			<resource>
+				<directory>src/test/resources</directory>
+				<includes>
+					<include>**/*</include>
+				</includes>
+			</resource>
+			<resource>
+				<directory>allure</directory>
+				<includes>
+					<include>**/*</include>
+				</includes>
+			</resource>
+		</resources>
+
+
 		<plugins>
 			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
-				<configuration>
-					<source>8</source>
-					<target>8</target>
-				</configuration>
+				<version>3.8.0</version>
 			</plugin>
 			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-assembly-plugin</artifactId>
-				<version>3.3.0</version>
 				<executions>
 					<execution>
-						<id>make-assembly</id>
 						<phase>package</phase>
 						<goals>
 							<goal>single</goal>
 						</goals>
-						<configuration>
-							<archive>
-								<manifest>
-									<mainClass>es.us.isa.restest.main.TestGenerationAndExecution</mainClass>
-									<addDefaultImplementationEntries>true</addDefaultImplementationEntries>
-									<addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
-								</manifest>
-							</archive>
-							<finalName>restest-full</finalName>
-							<appendAssemblyId>false</appendAssemblyId>
-							<descriptorRefs>
-								<descriptorRef>jar-with-dependencies</descriptorRef>
-							</descriptorRefs>
-						</configuration>
 					</execution>
 				</executions>
+				<configuration>
+					<descriptorRefs>
+						<descriptorRef>jar-with-dependencies</descriptorRef>
+					</descriptorRefs>
+					<archive>
+						<manifest>
+							<mainClass>es.us.isa.restest.main.TestGenerationAndExecution</mainClass>
+						</manifest>
+					</archive>
+				</configuration>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -446,7 +504,11 @@
 				<version>2.21.0</version>
 				<configuration>
 					<useSystemClassLoader>false</useSystemClassLoader>
-					<argLine>@{argLine} -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar"</argLine>
+					<additionalClasspathElements>
+						<additionalClasspathElement>${project.build.directory}/${project.build.finalName}.lib/*</additionalClasspathElement>
+					</additionalClasspathElements>
+					<argLine>@{argLine}
+						-javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar"</argLine>
 					<properties>
 						<property>
 							<name>listener</name>
@@ -473,7 +535,7 @@
 				<artifactId>allure-maven</artifactId>
 				<version>2.10.0</version>
 				<configuration>
-					<reportVersion>{allure.version}</reportVersion>
+					<reportVersion>2.13.3</reportVersion>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -532,17 +594,8 @@
 					</execution>
 				</executions>
 			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-release-plugin</artifactId>
-				<version>3.0.0-M1</version>
-				<configuration>
-					<autoVersionSubmodules>true</autoVersionSubmodules>
-					<useReleaseProfile>false</useReleaseProfile>
-					<releaseProfiles>release,deployment</releaseProfiles>
-					<goals>deploy</goals>
-				</configuration>
-			</plugin>
+
+
 		</plugins>
 	</build>
 
