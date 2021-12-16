@@ -4,7 +4,7 @@ package es.us.isa.restest.testcases;
 import static es.us.isa.restest.util.CSVManager.createCSVwithHeader;
 import static es.us.isa.restest.util.CSVManager.writeCSVRow;
 import static es.us.isa.restest.util.FileManager.checkIfExists;
-import static org.apache.commons.text.StringEscapeUtils.escapeCsv;
+import es.us.isa.restest.util.CSVManager;
 
 /**
  * Domain-independent test result
@@ -35,6 +35,11 @@ public class TestResult {
         this.passed = null;
         this.failReason = null;
 //        this.testCase = testCase;
+    }
+    
+    public TestResult(String id,String responseBody) {
+        this.id = id;
+        this.responseBody = responseBody;
     }
     
     public TestResult(TestResult testResult) {
@@ -104,8 +109,14 @@ public class TestResult {
         if (!checkIfExists(filePath)) // If the file doesn't exist, create it (only once)
             createCSVwithHeader(filePath, "testResultId,statusCode,responseBody,outputContentType,passed,failReason");
 
-        // Generate row, we need to escape all fields susceptible to contain characters such as ',', '\n', '"', etc.
-        String row = id + "," + statusCode + "," + escapeCsv(responseBody) + "," + outputFormat + "," + passed + "," + escapeCsv(failReason);
+        // Generate row
+        String csvResponseBody = "\"" + responseBody.replaceAll("\n", "\\\n").replaceAll("\"", "\"\"") + "\"";
+        String row = id + "," + statusCode + "," + csvResponseBody + "," + outputFormat + "," + passed + "," + failReason.replaceAll("\\,", "~").replaceAll("\n", "");
         writeCSVRow(filePath, row);
+    }
+    
+    public void exportToJSON(String filePath, String testResultId) {
+        if (!checkIfExists(filePath)) // If the file doesn't exist, create it (only once)
+        	CSVManager.writeJSON(filePath+"/responseJSONBody", responseBody, testResultId);
     }
 }
