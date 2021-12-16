@@ -1,0 +1,207 @@
+package es.us.isa.restest.util;
+
+import java.io.FileInputStream;
+import java.util.Map;
+import java.util.Properties;
+
+import org.eclipse.xtext.xtext.UsedRulesFinder;
+import org.junit.FixMethodOrder;
+import org.junit.Test;
+
+public class authentication {
+	
+	public static String zycusPropertiesDir = "src/test/resources/zycus_new/zycus.properties";
+	
+	public static String authCall = "    @Test\n" +
+			"\tpublic void AAAst_login_SETOPERATIONID() {\n" +
+			"\t\tString testResultId = \"test_login_SETOPERATIONID\";\n" +
+			"\t\t\n" +
+			"\t\tString json = \"{\\n\" +\n" +
+			"\t\t\t\t\"\\\"emailFieldName\\\":\\\"emailid\\\",\\n\" +\n" +
+			"\t\t\t\t\"\\\"password\\\": \\\"Password\\\"\\n\" +\n" +
+			"\t\t\t\t\"}\";\n" +
+			"\t\tjson = json.replace(\"emailid\", emailID).replace(\"Password\", password).replace(\"emailFieldName\", emailFieldName);\n" +
+			"\t\t\n" +
+			"\t\tnominalOrFaultyTestCaseFilter.updateFaultyData(false, true, \"none\");\n" +
+			"\t\tstatusCode5XXFilter.updateFaultyData(false, true, \"none\");\n" +
+			"\t\tcsvFilter.setTestResultId(testResultId);\n" +
+			"\t\tstatusCode5XXFilter.setTestResultId(testResultId);\n" +
+			"\t\tnominalOrFaultyTestCaseFilter.setTestResultId(testResultId);\n" +
+			//"\t\tvalidationFilter.setTestResultId(testResultId);\n" +
+			"\t\t\n" +
+			"\t\ttry {\n" +
+			"\t\t\tResponse response = RestAssured\n" +
+			"\t\t\t\t\t.given().header(\"Content-Type\", \"application/json\")\n" +
+			"\t\t\t\t\t.body(json)\n" +
+			"\t\t\t\t\t.log().all()\n" +
+			"\t\t\t\t\t.filter(allureFilter)\n" +
+			"\t\t\t\t\t.filter(statusCode5XXFilter)\n" +
+			"\t\t\t\t\t.filter(nominalOrFaultyTestCaseFilter)\n" +
+			"\t\t\t\t\t.when()\n" +
+			"\t\t\t\t\t.post(loginHost+loginApi);\n" +
+			"\n" +
+			"\t\t\tresponse.then().log().all();\n" +
+			"\t\t\tcookies = response.cookies();\n" +
+			"\t\t\ttoken = response.getCookie(\"SAAS_COMMON_BASE_TOKEN_ID\");\n" +
+			"\t\t\tSystem.setProperty(\"token1\",token);\n" +
+			"\t\t\tSystem.out.println(token);\n" +
+			"\t\t} catch (RuntimeException ex) {\n" +
+			"\t\t\tex.printStackTrace();\n" +
+			"\t\t\tSystem.err.println(ex.getMessage());\n" +
+			"\t\t\tfail(ex.getMessage());\n" +
+			"\t\t}\t\n" +
+			"\t}";
+	   public static String emailid = "emailID";
+	   public static String password = "password";
+	   
+	   
+    @Test
+    public void test(){
+    	String path = System.getProperty("user.dir")+"\\src\\generation\\java\\zycus\\ZycusTest_1iuvgdkgh59wh.java";
+    	String file = readFile(path);
+        String appendAuthentication = authenticate(file);
+        System.out.println(appendAuthentication);
+    	
+        
+    }
+
+    public static String authenticate(String Stream){
+        String[] splitFile = splitFile(Stream);
+        String appendDeclaration = appendDeclaration(Stream,splitFile,true); 
+        splitFile = splitFile(appendDeclaration);
+        String appendAuthentication = appendAuthentication(appendDeclaration,splitFile,true);
+    	return appendAuthentication;
+        
+    }
+
+    public static String readFile(String path){
+        String file = "";
+        try{
+            file = FileManager.readFile(path);
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+        return file;
+    }
+    
+    public static String[] splitFile(String file){
+        String s[] = null;
+        try{
+        	 s = file.split("\n");
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+        return s;
+    }
+    
+
+    
+    public static String appendDeclaration(String file, String[] s,boolean flag)
+    {	
+    	String userName = null;
+		String password = null;
+		String loginHost = null;
+		String loginApi = null;
+		String emailFieldName = null;
+    	try
+    	{
+    		FileInputStream fisZycus = new FileInputStream(zycusPropertiesDir);
+    		Properties zycusProperties = new Properties();
+    		zycusProperties.load(fisZycus);
+    		userName = zycusProperties.getProperty("login.credentials.username");
+    		password = zycusProperties.getProperty("login.credentials.password");
+    		loginHost = zycusProperties.getProperty("login.host");
+    		
+    		if(loginHost == null || loginHost.equals(""))
+    		{
+    			loginHost = zycusProperties.getProperty("test.environment.url");
+    		}
+    		
+    		loginApi = zycusProperties.getProperty("login.api");
+    		if(loginApi == null || loginApi.equals(""))
+    		{
+    			loginApi = "/api/u/tms/auth/login";
+    		}
+    		if(loginApi.toLowerCase().contains("/u/zsp/suppliers/login"))
+    		{
+    			emailFieldName = "email";
+    		}
+    		else
+    		{
+    			emailFieldName = "emailAddress";
+    		}
+    		
+    		fisZycus.close();
+    	}catch(Exception e)
+    	{
+    		e.printStackTrace();
+    		System.exit(0);
+    	}
+    	
+    	
+        String declarationString = "        private static Map<String,String> cookies;\n" +
+    			"        private static String emailID = \""+userName+"\";\n" +
+    			"        private static String password = \""+password+"\";\n" +
+    			"        private static String loginHost = \""+loginHost+"\";\n" +
+       			"        private static String loginApi = \""+loginApi+"\";\n" +
+       			"        private static String emailFieldName = \""+emailFieldName+"\";\n" +
+    			
+    			"        private static String token;\n";
+    	StringBuilder finalString = null;
+        try{
+            for(int i =0;i<s.length;i++){
+            	if(s[i].contains("BeforeClass")){
+            		if(flag){
+            			finalString = new StringBuilder(file);
+            			int declaration = finalString.indexOf(s[i]);
+            			finalString.insert(declaration, System.lineSeparator());
+            		finalString.insert(declaration,declarationString);
+            		finalString.insert(declaration+declarationString.length(), System.lineSeparator());
+            		break;
+            		}
+            	}
+            }
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+        return finalString.toString();
+    }
+    
+    public static String appendAuthentication(String file, String[] s,boolean flag){
+        
+    	StringBuilder finalString =  new StringBuilder(file);
+        try{
+            for(int i =0;i<s.length;i++){
+            	
+            	if(s[i] != null)
+            	{
+            		if(s[i].trim().equals("@Test")){
+                		if(flag){
+                			//finalString = new StringBuilder(file);
+                			int testMethod = finalString.indexOf(s[i]);
+                			finalString.insert(testMethod, System.lineSeparator());
+                		finalString.insert(testMethod,authCall);
+                		finalString.insert(testMethod+ authCall.length(), System.lineSeparator());
+                		break;
+                		}
+                	}
+            	}
+            	
+            	
+            }
+            
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+        return finalString.toString();
+    }
+    
+
+    
+
+
+
+
+
+
+}
