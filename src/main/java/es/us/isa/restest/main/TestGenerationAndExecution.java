@@ -15,19 +15,15 @@ import es.us.isa.restest.specification.OpenAPISpecification;
 import es.us.isa.restest.testcases.writers.IWriter;
 import es.us.isa.restest.testcases.writers.RESTAssuredWriter;
 import es.us.isa.restest.util.*;
-import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
 
 import java.io.File;
-import java.io.PrintStream;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static es.us.isa.restest.configuration.TestConfigurationIO.loadConfiguration;
-import static es.us.isa.restest.inputs.semantic.ARTEInputGenerator.szEndpoint;
 import static es.us.isa.restest.util.FileManager.createDir;
 import static es.us.isa.restest.util.FileManager.deleteDir;
 import static es.us.isa.restest.util.Timer.TestStep.ALL;
@@ -38,11 +34,10 @@ import static es.us.isa.restest.util.Timer.TestStep.ALL;
 public class TestGenerationAndExecution {
 
 	// Properties file with configuration settings
-	private static String propertiesFilePath = "src/test/resources/Folder/api.properties";
-
-	private static List<String> argsList;								// List containing args
-	
+	private static String propertiesFilePath = "src/test/resources/zycus_new/zycus.properties";
 	private static Integer numTestCases; 								// Number of test cases per operation
+	private static Integer numGetTestCases; 								// Number of test cases per GET operation
+	
 	private static String OAISpecPath; 									// Path to OAS specification file
 	private static OpenAPISpecification spec; 							// OAS specification
 	private static String confPath; 									// Path to test configuration file
@@ -60,9 +55,6 @@ public class TestGenerationAndExecution {
 	private static String generator; 									// Generator (RT: Random testing, CBT:Constraint-based testing)
 	private static Boolean logToFile;									// If 'true', log messages will be printed to external files
 	private static boolean executeTestCases;							// If 'false', test cases will be generated but not executed
-	private static boolean allureReports;								// If 'true', Allure reports will be generated
-	private static boolean checkTestCases;								// If 'true', test cases will be checked with OASValidator before executing them
-	private static String proxy;										// Proxy to use for all requests in format host:port
 
 	// For Constraint-based testing and AR Testing:
 	private static Float faultyDependencyRatio; 						// Percentage of faulty test cases due to dependencies to generate.
@@ -72,60 +64,44 @@ public class TestGenerationAndExecution {
 	// For AR Testing only:
 	private static String similarityMetric;								// The algorithm to measure the similarity between test cases
 	private static Integer numberCandidates;							// Number of candidate test cases per AR iteration
+	private static String jsonDir;
+	private static String testDir;
+	
 
-	// ARTE
-	private static Boolean learnRegex;									// Set to 'true' if you want RESTest to automatically generate Regular expressions that filter the semantically generated input data
-	private static boolean secondPredicateSearch;
-	private static int maxNumberOfPredicates;                			// MaxNumberOfPredicates = AdditionalPredicates + 1
-	private static int minimumValidAndInvalidValues;
-	private static String metricToUse;
-	private static Double minimumValueOfMetric;
-	private static int maxNumberOfTriesToGenerateRegularExpression;
-
+	private static String testEnvironment; 
+	
 	private static Logger logger = LogManager.getLogger(TestGenerationAndExecution.class.getName());
 
-	public static void main(String[] args) throws RESTestException {
+	public static void main(String[] args) throws Exception {
+		
+		// Read parameter values from .properties file
+		readParameterValues();
 
+		// This will create the test data needed for Delete APIs
+		//DeleteAPITestDataCreator.createTestDataForDeleteAPIs();
+		
 		Timer.startCounting(ALL);
-
-		// ONLY FOR LOCAL COPY OF DBPEDIA
-		if (szEndpoint.contains("localhost") || szEndpoint.contains("127.0.0.1"))
-			System.setProperty("http.maxConnections", "10000");
-
-		// Read .properties file path. This file contains the configuration parameters for the generation
+		jsonDir = targetDirJava+"/TestJSON";
+		testDir = targetDirJava+"/Test";
+		// Read .properties file path. This file contains the configuration parameter
+		// for the generation
 		if (args.length > 0)
 			propertiesFilePath = args[0];
 
-		// Populate configuration parameters, either from arguments or from .properties file
-		argsList = Arrays.asList(args);
-		readParameterValues();
-
-		// Set proxy globally, if specified
-		if (proxy != null) {
-			System.setProperty("http.proxyHost", proxy.split(":")[0]);
-			System.setProperty("http.proxyPort", proxy.split(":")[1]);
-			System.setProperty("http.nonProxyHosts", "localhost|127.0.0.1");
-			System.setProperty("https.proxyHost", proxy.split(":")[0]);
-			System.setProperty("https.proxyPort", proxy.split(":")[1]);
-			System.setProperty("https.nonProxyHosts", "localhost|127.0.0.1");
-		}
-
 		// Create target directory if it does not exists
 		createDir(targetDirJava);
-
+		deleteDir(jsonDir);
+		createDir(jsonDir);
+		createDir(testDir);
+		
 		// RESTest runner
 		AbstractTestCaseGenerator generator = createGenerator(); // Test case generator
 		IWriter writer = createWriter(); // Test case writer
 		StatsReportManager statsReportManager = createStatsReportManager(); // Stats reporter
 		AllureReportManager reportManager = createAllureReportManager(); // Allure test case reporter
-
-		RESTestRunner runner = new RESTestRunner(testClassName, targetDirJava, packageName, learnRegex,
-				secondPredicateSearch, spec, confPath, generator, writer,
-				reportManager, statsReportManager);
-
+		RESTestRunner runner = new RESTestRunner(testClassName, targetDirJava, packageName, generator, writer,
+					reportManager, statsReportManager);
 		runner.setExecuteTestCases(executeTestCases);
-		runner.setAllureReport(allureReports);
-
 
 
 		// Main loop
@@ -137,7 +113,7 @@ public class TestGenerationAndExecution {
 				delay(timeDelay);
 
 			// Generate unique test class name to avoid the same class being loaded everytime
-			String id = IDGenerator.generateTimeId();
+			String id = IDGenerator.generateId();
 			String className = testClassName + "_" + id;
 			((RESTAssuredWriter) writer).setClassName(className);
 			((RESTAssuredWriter) writer).setTestId(id);
@@ -157,9 +133,20 @@ public class TestGenerationAndExecution {
 	}
 
 	// Create a test case generator
-	private static AbstractTestCaseGenerator createGenerator() throws RESTestException {
-		// Load specification
-		spec = new OpenAPISpecification(OAISpecPath);
+	private static AbstractTestCaseGenerator createGenerator() {
+		
+		try
+		{
+			// Load specification
+			spec = new OpenAPISpecification(OAISpecPath);
+		}
+		catch(Exception e)
+		{
+			System.out.println("*****Error : swagger.yaml has validation issues. Not able to parse it.");
+			System.out.println("*****Error : You can find the validation issues by copying swagger.yaml into editor.swagger.io/");
+			System.out.println("Fix the validation issues.Exiting...");
+			System.exit(-1);
+		}
 
 		// Load configuration
 		TestConfigurationObject conf;
@@ -181,21 +168,21 @@ public class TestGenerationAndExecution {
 
 		switch (generator) {
 		case "FT":
-			gen = new FuzzingTestCaseGenerator(spec, conf, numTestCases);
+			gen = new FuzzingTestCaseGenerator(spec, conf, numTestCases,numGetTestCases);
 			break;
 		case "RT":
-			gen = new RandomTestCaseGenerator(spec, conf, numTestCases);
+			gen = new RandomTestCaseGenerator(spec, conf, numTestCases, numGetTestCases);
 			((RandomTestCaseGenerator) gen).setFaultyRatio(faultyRatio);
 			break;
 		case "CBT":
-			gen = new ConstraintBasedTestCaseGenerator(spec, conf, numTestCases);
+			gen = new ConstraintBasedTestCaseGenerator(spec, conf, numTestCases, numGetTestCases);
 			((ConstraintBasedTestCaseGenerator) gen).setFaultyDependencyRatio(faultyDependencyRatio);
 			((ConstraintBasedTestCaseGenerator) gen).setInputDataMaxValues(inputDataMaxValues);
 			((ConstraintBasedTestCaseGenerator) gen).setReloadInputDataEvery(reloadInputDataEvery);
 			gen.setFaultyRatio(faultyRatio);
 			break;
 		case "ART":
-			gen = new ARTestCaseGenerator(spec, conf, numTestCases);
+			gen = new ARTestCaseGenerator(spec, conf, numTestCases, numGetTestCases);
 			((ARTestCaseGenerator) gen).setFaultyDependencyRatio(faultyDependencyRatio);
 			((ARTestCaseGenerator) gen).setInputDataMaxValues(inputDataMaxValues);
 			((ARTestCaseGenerator) gen).setReloadInputDataEvery(reloadInputDataEvery);
@@ -204,25 +191,21 @@ public class TestGenerationAndExecution {
 			gen.setFaultyRatio(faultyRatio);
 			break;
 		default:
-			throw new RESTestException("Property 'generator' must be one of 'FT', 'RT', 'CBT' or 'ART'");
 		}
-
-		gen.setCheckTestCases(checkTestCases);
 
 		return gen;
 	}
 
 	// Create a writer for RESTAssured
 	private static IWriter createWriter() {
-		String basePath = spec.getSpecification().getServers().get(0).getUrl();
-		RESTAssuredWriter writer = new RESTAssuredWriter(OAISpecPath, confPath, targetDirJava, testClassName, packageName,
-				basePath, logToFile);
+		//String basePath = spec.getSpecification().getServers().get(0).getUrl();
+		RESTAssuredWriter writer = new RESTAssuredWriter(OAISpecPath, targetDirJava, testClassName, packageName,
+				testEnvironment, logToFile);
 		writer.setLogging(true);
 		writer.setAllureReport(true);
 		writer.setEnableStats(enableCSVStats);
 		writer.setEnableOutputCoverage(enableOutputCoverage);
 		writer.setAPIName(experimentName);
-		writer.setProxy(proxy);
 		return writer;
 	}
 
@@ -264,12 +247,8 @@ public class TestGenerationAndExecution {
 			createDir(coverageDataDir);
 		}
 
-		CoverageMeter coverageMeter = enableInputCoverage || enableOutputCoverage ? new CoverageMeter(new CoverageGatherer(spec)) : null;
-
 		return new StatsReportManager(testDataDir, coverageDataDir, enableCSVStats, enableInputCoverage,
-					enableOutputCoverage, coverageMeter, secondPredicateSearch, maxNumberOfPredicates,
-					minimumValidAndInvalidValues, metricToUse, minimumValueOfMetric,
-					maxNumberOfTriesToGenerateRegularExpression);
+				enableOutputCoverage, new CoverageMeter(new CoverageGatherer(spec)));
 	}
 
 	private static void generateTimeReport(Integer iterations) {
@@ -298,7 +277,7 @@ public class TestGenerationAndExecution {
 	}
 
 	// Read the parameter values from the .properties file. If the value is not found, the system looks for it in the global .properties file (config.properties)
-	private static void readParameterValues() {
+	private static void readParameterValues() throws Exception{
 
 		logToFile = Boolean.parseBoolean(readParameterValue("logToFile"));
 		if(logToFile) {
@@ -312,6 +291,17 @@ public class TestGenerationAndExecution {
 		
 		OAISpecPath = readParameterValue("oas.path");
 		logger.info("OAS path: {}", OAISpecPath);
+		
+		testEnvironment = readParameterValue("test.environment.url");
+		logger.info("Test Environment Name: {}", testEnvironment);
+		if(testEnvironment == null || testEnvironment.equals(""))
+		{
+			throw new Exception("Configuration parameter 'test.environment.url' should be defined and can't be empty or null");
+		}
+		if(testEnvironment.endsWith("/")){
+			testEnvironment = testEnvironment.substring(0,testEnvironment.length()-1);
+		}
+		
 		
 		confPath = readParameterValue("conf.path");
 		logger.info("Test configuration path: {}", confPath);
@@ -327,30 +317,19 @@ public class TestGenerationAndExecution {
 			executeTestCases = Boolean.parseBoolean(readParameterValue("experiment.execute"));
 		}
 		logger.info("Experiment execution: {}", executeTestCases);
-
-		if (readParameterValue("allure.report") != null) {
-			allureReports = Boolean.parseBoolean(readParameterValue("allure.report"));
-		}
-		logger.info("Allure reports: {}", allureReports);
-
-		if (readParameterValue("proxy") != null) {
-			proxy = readParameterValue("proxy");
-			if ("null".equals(proxy) || proxy.split(":").length != 2)
-				proxy = null;
-		}
-		logger.info("Proxy: {}", proxy);
-
-		if (readParameterValue("testcases.check") != null)
-			checkTestCases = Boolean.parseBoolean(readParameterValue("testcases.check"));
-		logger.info("Check test cases: {}", checkTestCases);
 		
 		testClassName = readParameterValue("testclass.name");
 		logger.info("Test class name: {}", testClassName);
 
-		if (readParameterValue("testsperoperation") != null)
-			numTestCases = Integer.parseInt(readParameterValue("testsperoperation"));
-		logger.info("Number of test cases per operation: {}", numTestCases);
-
+		if (readParameterValue("testsPerPOSTOperation") != null)
+			numTestCases = Integer.parseInt(readParameterValue("testsPerPOSTOperation"));
+		logger.info("Number of POST test cases per operation: {}", numTestCases);
+		
+		if (readParameterValue("testsPerGETOperation") != null)
+			numGetTestCases = Integer.parseInt(readParameterValue("testsPerGETOperation"));
+		logger.info("Number of GET test cases per operation: {}", numGetTestCases);
+		
+		
 		if (readParameterValue("numtotaltestcases") != null)
 			totalNumTestCases = Integer.parseInt(readParameterValue("numtotaltestcases"));
 		logger.info("Max number of test cases: {}", totalNumTestCases);
@@ -398,48 +377,16 @@ public class TestGenerationAndExecution {
 		if (readParameterValue("faulty.dependency.ratio") != null)
 			faultyDependencyRatio = Float.parseFloat(readParameterValue("faulty.dependency.ratio"));
 		logger.info("Faulty dependency ratio: {}", faultyDependencyRatio);
-
-		// ARTE
-		if (readParameterValue("learnRegex") != null)
-			learnRegex = Boolean.parseBoolean(readParameterValue("learnRegex"));
-		logger.info("Learn Regular expressions: {}", learnRegex);
-
-		if (readParameterValue("secondPredicateSearch") != null)
-			secondPredicateSearch = Boolean.parseBoolean(readParameterValue("secondPredicateSearch"));
-		logger.info("Second Predicate Search: {}", secondPredicateSearch);
-
-		if (readParameterValue("maxNumberOfPredicates") != null)
-			maxNumberOfPredicates = Integer.parseInt(readParameterValue("maxNumberOfPredicates"));
-		logger.info("Maximum number of predicates: {}", maxNumberOfPredicates);
-
-		if (readParameterValue("minimumValidAndInvalidValues") != null)
-			minimumValidAndInvalidValues = Integer.parseInt(readParameterValue("minimumValidAndInvalidValues"));
-		logger.info("Minimum valid and invalid values: {}", minimumValidAndInvalidValues);
-
-		if (readParameterValue("metricToUse") != null)
-			metricToUse = readParameterValue("metricToUse");
-		logger.info("Metric to use: {}", metricToUse);
-
-		if (readParameterValue("minimumValueOfMetric") != null)
-			minimumValueOfMetric = Double.parseDouble(readParameterValue("minimumValueOfMetric"));
-		logger.info("Minimum value of metric: {}", minimumValueOfMetric);
-
-		if (readParameterValue("maxNumberOfTriesToGenerateRegularExpression") != null)
-			maxNumberOfTriesToGenerateRegularExpression = Integer.parseInt(readParameterValue("maxNumberOfTriesToGenerateRegularExpression"));
-		logger.info("Maximum number of tries to generate a regular expression: {}", maxNumberOfTriesToGenerateRegularExpression);
+		
 	
 	}
 
-	// Read the parameter value from: 1) CLI; 2) the local .properties file; 3) the global .properties file (config.properties)
+	// Read the parameter value from the local .properties file. If the value is not found, it reads it form the global .properties file (config.properties)
 	private static String readParameterValue(String propertyName) {
 
 		String value = null;
-
-		if (argsList.contains(propertyName))
-			value = argsList.get(argsList.indexOf(propertyName) + 1);
-		else if (argsList.stream().anyMatch(arg -> arg.matches("^" + propertyName + "=.*")))
-			value = argsList.stream().filter(arg -> arg.matches("^" + propertyName + "=.*")).findFirst().get().split("=")[1];
-		else if (PropertyManager.readProperty(propertiesFilePath, propertyName) != null) // Read value from local .properties file
+		if (PropertyManager.readProperty(propertiesFilePath, propertyName) != null) // Read value from local .properties
+																					// file
 			value = PropertyManager.readProperty(propertiesFilePath, propertyName);
 		else if (PropertyManager.readProperty(propertyName) != null) // Read value from global .properties file
 			value = PropertyManager.readProperty(propertyName);
@@ -447,27 +394,8 @@ public class TestGenerationAndExecution {
 		return value;
 	}
 
-
-	public static TestConfigurationObject getTestConfigurationObject(){
-		return loadConfiguration(confPath, spec);
-	}
-
-	public static String getExperimentName(){ return experimentName; }
-
 	private static void setUpLogger() {
-		// Recreate log directory if necessary
-		if (Boolean.parseBoolean(readParameterValue("deletepreviousresults"))) {
-			String logDataDir = readParameterValue("data.log.dir") + "/" + readParameterValue("experiment.name");
-			deleteDir(logDataDir);
-			createDir(logDataDir);
-		}
-
-		// Attach stdout and stderr to logger
-		System.setOut(new PrintStream(new LoggerStream(LogManager.getLogger("stdout"), Level.INFO, System.out)));
-		System.setErr(new PrintStream(new LoggerStream(LogManager.getLogger("stderr"), Level.ERROR, System.err)));
-
-		// Configure regular logger
-		String logPath = readParameterValue("data.log.dir") + "/" + readParameterValue("experiment.name") + "/" + readParameterValue("data.log.file");
+		String logPath = readParameterValue("log.path");
 
 		System.setProperty("logFilename", logPath);
 		LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
@@ -475,5 +403,4 @@ public class TestGenerationAndExecution {
 		ctx.setConfigLocation(file.toURI());
 		ctx.reconfigure();
 	}
-
 }
