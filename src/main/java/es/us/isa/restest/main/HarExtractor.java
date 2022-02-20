@@ -51,11 +51,14 @@ public class HarExtractor {
 	public static HashMap<String, ArrayList<String>> apis = new HashMap<String, ArrayList<String>>();
 	public static List<String> urlListfromSwagger;
 	
-	public static void main(String args[]) {
-		
-		
-		
-		
+	public static void main(String args[]) 
+	{
+		harExtractor();
+	}
+	
+	
+	public static void harExtractor()
+	{
 		JSONParser jsonParser = new JSONParser();
 		int min = 1;
 		int max = 900;
@@ -181,7 +184,12 @@ public class HarExtractor {
 							if (entryrequest.containsKey("url")) {
 								httpurl = entryrequest.get("url").toString();
 								
-								
+								//Test Code
+//								if(httpurl.toLowerCase().contains("/downloadpurchaseorder?"))
+//								{
+//									System.out.println("I am in ");
+//									System.out.println("I am in ");
+//								}
 								
 								if (!httpurl.contains(".csv") && 
 									!httpurl.contains("session") && 
@@ -717,6 +725,12 @@ public class HarExtractor {
 		for(int i=0; i < harURLs.size(); i++)
 		{
 			harURL = harURLs.get(i);
+			
+			if(harURL.contains("?"))
+			{
+				harURL = harURL.substring(0, harURL.indexOf("?"));
+			}
+					
 			if (harURL.startsWith("/")) {
 				harURL = harURL.substring(1);
 			}
@@ -787,7 +801,16 @@ public class HarExtractor {
 		String[] a2;
 		ArrayList<Integer> notMatchSequence = new ArrayList<Integer>(); 
 		int uriLength = 0;
-		harURL = URI;
+		
+		if(URI.contains("?"))
+		{
+			harURL = URI.substring(0,URI.indexOf("?"));
+		}
+		else
+		{
+			harURL = URI;
+		}
+		
 		boolean isMismatch = false;
 		ArrayList<String> matchedURLs = new ArrayList<String>(); 
 		
