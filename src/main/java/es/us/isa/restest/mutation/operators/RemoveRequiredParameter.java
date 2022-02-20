@@ -7,7 +7,7 @@ import io.swagger.v3.oas.models.Operation;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
-import static es.us.isa.restest.util.SpecificationVisitor.getRequiredNotPathParametersFeatures;
+import static es.us.isa.restest.util.SpecificationVisitor.getRequiredNotPathParameters;
 
 /**
  * @author Alberto Martin-Lopez
@@ -26,15 +26,16 @@ public class RemoveRequiredParameter extends AbstractMutationOperator {
      * @return True if the mutation was applied, false otherwise.
      */
     public static String mutate(TestCase tc, Operation specOperation) {
-        List<ParameterFeatures> candidateParameters = getRequiredNotPathParametersFeatures(specOperation); // Path parameters cannot be removed
-        
+        List<ParameterFeatures> candidateParameters = getRequiredNotPathParameters(specOperation); // Path parameters cannot be removed
+        int count = 0;
         // No required parameters. Mutation not applicable
         if (candidateParameters.isEmpty())
         	return "";
         
         // Remove random required parameter
         ParameterFeatures selectedParam = candidateParameters.get(ThreadLocalRandom.current().nextInt(0, candidateParameters.size()));
-        tc.removeParameter(selectedParam);
+        if(!selectedParam.getName().equalsIgnoreCase("body"))
+           tc.removeParameter(selectedParam);
         return "Removed required parameter " + selectedParam.getName();
     }
     
