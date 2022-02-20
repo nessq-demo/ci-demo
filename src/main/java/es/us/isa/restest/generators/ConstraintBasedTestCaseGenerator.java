@@ -9,15 +9,10 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
-import es.us.isa.idlreasonerchoco.analyzer.OASAnalyzer;
-import es.us.isa.idlreasonerchoco.configuration.IDLException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.javatuples.Pair;
 
-import es.us.isa.idlreasonerchoco.analyzer.Analyzer;
+import es.us.isa.idlreasoner.analyzer.Analyzer;
 import es.us.isa.restest.configuration.pojos.Operation;
 import es.us.isa.restest.configuration.pojos.TestConfigurationObject;
 import es.us.isa.restest.configuration.pojos.TestParameter;
@@ -48,11 +43,9 @@ public class ConstraintBasedTestCaseGenerator extends AbstractTestCaseGenerator 
 	private int maxFaultyTestsDueToIndividualConstraints;										// Maximum number of faulty test cases due to individual constraints to be generated
 	int nFaultyTestDueToDependencyViolations;													// Current number of faulty test cases due to dependency violations to be generated
 	int nFaultyTestsDueToIndividualConstraint;													// Current number of faulty test cases due to individual constraints to be generated
-
-	private static Logger logger = LogManager.getLogger(ConstraintBasedTestCaseGenerator.class.getName());
-
-	public ConstraintBasedTestCaseGenerator(OpenAPISpecification spec, TestConfigurationObject conf, int nTests) {
-		super(spec, conf, nTests);
+	
+	public ConstraintBasedTestCaseGenerator(OpenAPISpecification spec, TestConfigurationObject conf, int nTests, int nGetTests) {
+		super(spec, conf, nTests, nGetTests);
 		
 	}
 
@@ -61,15 +54,10 @@ public class ConstraintBasedTestCaseGenerator extends AbstractTestCaseGenerator 
 	 * @param testOperation API operation under test
 	 */
 	public void setUpIDLReasoner(Operation testOperation) {
-		idlReasoner = null;
 		if (hasDependencies(testOperation.getOpenApiOperation())) // If the operation contains dependencies, create new IDLReasoner for that operation
-		{
-			try {
-				idlReasoner = new OASAnalyzer(spec.getPath(), testOperation.getTestPath(), testOperation.getMethod());
-			} catch (IDLException e) {
-				logger.warn("There was an error processing the dependencies of the operation {} {}: {}", testOperation.getMethod(), testOperation.getTestPath(), e.getMessage());
-			}
-		}
+			idlReasoner = new Analyzer("oas", spec.getPath(), testOperation.getTestPath(), testOperation.getMethod());
+		else // Otherwise, set it to null so that it's not used
+			idlReasoner = null;
 	}
 
 	/**
@@ -79,11 +67,7 @@ public class ConstraintBasedTestCaseGenerator extends AbstractTestCaseGenerator 
 	public void checkIDLReasonerData(Operation testOperation) {
 		if (idlReasoner != null && nTests%reloadInputDataEvery == 0) {
 			Map <String, List<String>> inputData = generateInputData(testOperation.getTestParameters()); // Update input data
-			try {
-				idlReasoner.updateData(inputData);
-			} catch (IDLException e) {
-				logger.warn("There was an error updating the data of IDLReasoner: {}", e.getMessage());
-			}
+			idlReasoner.updateData(inputData);
 		}
 	}
 
@@ -94,7 +78,7 @@ public class ConstraintBasedTestCaseGenerator extends AbstractTestCaseGenerator 
 
 		
 		List<TestCase> testCases = new ArrayList<>();
-
+		
 		setUpIDLReasoner(testOperation);
 
 		// Reset counters for the current operation
@@ -112,7 +96,7 @@ public class ConstraintBasedTestCaseGenerator extends AbstractTestCaseGenerator 
 		nFaultyTestsDueToIndividualConstraint = 0;
 		
 
-		while (hasNext()) {
+		while (hasNext(testOperation.getMethod())) {
 			checkIDLReasonerData(testOperation);
 
 			//Timer.startCounting(TEST_CASE_GENERATION);
@@ -137,7 +121,7 @@ public class ConstraintBasedTestCaseGenerator extends AbstractTestCaseGenerator 
 	// Generate the next test case and update the generation index
 	public TestCase generateNextTestCase(Operation testOperation) throws RESTestException {
 		
-		TestCase test;
+		TestCase test = null;
 
 		if (nFaultyTestDueToDependencyViolations < maxFaultyTestDueToDependencyViolations)		// Try generating a faulty test case violating one or more inter-parameter dependency
 			test = generateNextTestCase(testOperation, INTER_PARAMETER_DEPENDENCY);
@@ -145,10 +129,10 @@ public class ConstraintBasedTestCaseGenerator extends AbstractTestCaseGenerator 
 		else if (nFaultyTestsDueToIndividualConstraint < maxFaultyTestsDueToIndividualConstraints)		// Try generating a faulty test case violating an individual constraint
 			test = generateNextTestCase(testOperation, INDIVIDUAL_PARAMETER_CONSTRAINT);
 
-		else
+		// If a faulty test case has not been created. Generate a valid test case.
+		if (test==null)
 			test = generateNextTestCase(testOperation, "none");
-
-		checkTestCaseValidity(test);
+		
 		
 		return test;
 	}
@@ -177,8 +161,8 @@ public class ConstraintBasedTestCaseGenerator extends AbstractTestCaseGenerator 
 				break;
 				
 			case INDIVIDUAL_PARAMETER_CONSTRAINT:
-				test = generateValidTestCase(testOperation);
-				if (makeTestCaseFaultyDueToIndividualConstraints(test, testOperation))
+				test = generateFaultyTestCaseDueToIndividualConstraints(testOperation);
+				if (test != null)
 					nFaultyTestsDueToIndividualConstraint++;
 				break;
 			default:
@@ -197,12 +181,7 @@ public class ConstraintBasedTestCaseGenerator extends AbstractTestCaseGenerator 
 		
 		if (idlReasoner != null) {		// The operation has inter-parameter dependencies
 			test = createTestCaseTemplate(testOperation);
-			try {
-				idl2restestTestCase(test, idlReasoner.getRandomValidRequest(), testOperation); // Generate valid test case with IDLReasoner
-			} catch (IDLException e) {
-				logger.warn("There was an error generating a valid request with IDLReasoner: {}", e.getMessage());
-				throw new RESTestException(e);
-			}
+			idl2restestTestCase(test, idlReasoner.getRandomValidRequest(), testOperation); // Generate valid test case with IDLReasoner
 		}
 		else 							// The operation has no inter-parameter dependences: generate a random test case
 			test = generateRandomValidTestCase(testOperation); // Generate valid test case normally (no need to manage deps.)
@@ -222,12 +201,7 @@ public class ConstraintBasedTestCaseGenerator extends AbstractTestCaseGenerator 
 		
 		if (idlReasoner != null) {		// The operation has inter-parameter dependencies
 			test = createTestCaseTemplate(testOperation);
-			try {
-				idl2restestTestCase(test, idlReasoner.getRandomInvalidRequest(), testOperation); // Generate invalid test case with IDLReasoner
-			} catch (IDLException e) {
-				logger.warn("There was an error generating an invalid request with IDLReasoner: {}", e.getMessage());
-				throw new RESTestException(e);
-			}
+			idl2restestTestCase(test, idlReasoner.getRandomInvalidRequest(), testOperation); // Generate invalid test case with IDLReasoner
 			test.setFaulty(true);
 			test.setFaultyReason(INTER_PARAMETER_DEPENDENCY);
 		} else {						// The operation has no inter-parameter dependencies
@@ -253,13 +227,13 @@ public class ConstraintBasedTestCaseGenerator extends AbstractTestCaseGenerator 
 				if (generator instanceof RandomInputValueIterator && ((RandomInputValueIterator) generator).getMaxValues() == 1) {
 					paramValues = ((RandomInputValueIterator) generator).getValues();
 				} else if (generator instanceof RandomBooleanGenerator) {
-					paramValues = Arrays.asList("true", "false");
+					paramValues = Arrays.asList("0", "1");
 				} else {
 					while (paramValues.size() < inputDataMaxValues) {
 						paramValues.add(generator.nextValueAsString());
 					}
 				}
-				inputData.put(parameter.getName(), paramValues.stream().distinct().collect(Collectors.toList()));
+				inputData.put(parameter.getName(), paramValues);
 			}
 		}
 
@@ -267,8 +241,18 @@ public class ConstraintBasedTestCaseGenerator extends AbstractTestCaseGenerator 
 	}
 	
 	// Returns true if there are more test cases to be generated
-	protected boolean hasNext() {
-		return nTests < numberOfTests;
+	protected boolean hasNext(String operationMethod) {
+		
+		int noOfTests;
+		if(operationMethod.equalsIgnoreCase("GET") || operationMethod.equalsIgnoreCase("DELETE"))
+		{
+			noOfTests = numberOfGetTests;
+		}
+		else
+		{
+			noOfTests = numberOfTests;
+		}
+		return nTests < noOfTests;
 	}
 
 	public Float getFaultyDependencyRatio() {
