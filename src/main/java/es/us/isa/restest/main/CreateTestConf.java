@@ -23,21 +23,26 @@ public class CreateTestConf {
     //private static String openApiSpecPath = "https://swagger-ui.zycus.net/api/swagger.json";
     private static String confPath;																// Test configuration path
 
-
+    public static void main(String[] args) 
+    {
+    	createTestConf(args);
+    }	
     /*
      * This main method can receive two types of arguments (optional):
      * 		1. Path of the OAS specification file for which the test configuration file will be generated
      *      2. One ore more filters specifying the operations for which test configuration data must be created. Format: "path1:HTTPMethod1,path2:HTTPMethod2,..."
      */
-    public static void main(String[] args) {
+    public static void createTestConf(String[] args) 
+    {
 
         List<TestConfigurationFilter> filters=null;
 
         // Read input OAS specification file path (if any)
-        if(args.length > 1) {				// Read input OAS specification file path and filters
-            openApiSpecPath = args[0];
+        if (args != null && args.length > 0)			// Read input OAS specification file path and filters
+        {
+        	openApiSpecPath = args[0];
             filters = generateFilters(Arrays.copyOfRange(args,1, args.length));
-        } else if (args.length == 1)		// Read input OAS specification file
+        } else if (args != null && args.length > 0)		// Read input OAS specification file
             openApiSpecPath = args[0];
 
         // Generate target path if it does not exist
