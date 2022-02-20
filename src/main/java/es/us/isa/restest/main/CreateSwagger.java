@@ -45,8 +45,11 @@ public class CreateSwagger
 	
 	public static void main(String args[]) 
 	{
-		
-		
+		createSwaggerXML();
+	}
+	
+	public static void createSwaggerXML() 
+	{
 		try {
 			
 			String subURIs[] = null;
@@ -478,4 +481,4 @@ public class CreateSwagger
         
         return apisList;
 	}
-}			
+}
