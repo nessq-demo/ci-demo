@@ -34,7 +34,7 @@ import static es.us.isa.restest.util.Timer.TestStep.ALL;
 public class TestGenerationAndExecution {
 
 	// Properties file with configuration settings
-	private static String propertiesFilePath = "src/test/resources/zycus_new/zycus.properties";
+	private static String propertiesFilePath; 
 	private static Integer numTestCases; 								// Number of test cases per operation
 	private static Integer numGetTestCases; 								// Number of test cases per GET operation
 	
@@ -72,7 +72,28 @@ public class TestGenerationAndExecution {
 	
 	private static Logger logger = LogManager.getLogger(TestGenerationAndExecution.class.getName());
 
-	public static void main(String[] args) throws Exception {
+	public static void main(String[] args) throws Exception 
+	{
+		testGenerationAndExecution(args);
+	}
+	
+	public static void testGenerationAndExecution(String[] args) throws Exception 
+	{
+		
+		// Read .properties file path. This file contains the configuration parameter
+		// for the generation
+		if (args != null && args.length > 0)
+		{
+			if(args[0] != null && args[0].length() > 0)
+			{
+				propertiesFilePath = "src/test/resources/zycus_new/"+args[0].trim();
+			}
+		}
+		else
+		{
+			propertiesFilePath = "src/test/resources/zycus_new/zycus.properties";
+		}
+		System.setProperty("zycus.properties", propertiesFilePath);
 		
 		// Read parameter values from .properties file
 		readParameterValues();
@@ -83,11 +104,7 @@ public class TestGenerationAndExecution {
 		Timer.startCounting(ALL);
 		jsonDir = targetDirJava+"/TestJSON";
 		testDir = targetDirJava+"/Test";
-		// Read .properties file path. This file contains the configuration parameter
-		// for the generation
-		if (args.length > 0)
-			propertiesFilePath = args[0];
-
+		
 		// Create target directory if it does not exists
 		createDir(targetDirJava);
 		deleteDir(jsonDir);
