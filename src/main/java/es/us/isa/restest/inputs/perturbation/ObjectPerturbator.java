@@ -3,8 +3,10 @@ package es.us.isa.restest.inputs.perturbation;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.fge.jsonpatch.diff.JsonDiff;
 import es.us.isa.jsonmutator.JsonMutator;
 import es.us.isa.restest.inputs.ITestDataGenerator;
+import es.us.isa.restest.mutation.operators.JsonMutatorLocal;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -26,17 +28,18 @@ import java.util.Random;
 public class ObjectPerturbator implements ITestDataGenerator {
 
     private List<JsonNode> originalObjects;
-    private JsonMutator jsonMutator;
+    private JsonMutatorLocal jsonMutator;
     private ObjectMapper objectMapper;
     private Boolean singleOrder = true; // True if single order mutation, false otherwise
     private Random random = new SecureRandom();
 
     private static final String LOGGER_ERROR_MSG = "An error occurred when deserializing JSON:";
     private static Logger logger = LogManager.getLogger(ObjectPerturbator.class.getName());
+    public static JsonNode beforeMutate;
 
     public ObjectPerturbator() {
         this.objectMapper = new ObjectMapper();
-        this.jsonMutator = new JsonMutator();
+        this.jsonMutator = new JsonMutatorLocal();
         this.originalObjects = new ArrayList<>();
     }
 
@@ -79,6 +82,16 @@ public class ObjectPerturbator implements ITestDataGenerator {
 
     @Override
     public JsonNode nextValue() {
+        int index = random.nextInt(originalObjects.size());
+        JsonNode beforeMutating = originalObjects.get(index).deepCopy();
+        beforeMutate = beforeMutating;
+        JsonNode afterMutating = jsonMutator.mutateJson(originalObjects.get(index), singleOrder);
+        originalObjects.set(index, beforeMutating);
+        return afterMutating;
+    }
+
+
+    public JsonNode appendDateField() {
         int index = random.nextInt(originalObjects.size());
         JsonNode beforeMutating = originalObjects.get(index).deepCopy();
         JsonNode afterMutating = jsonMutator.mutateJson(originalObjects.get(index), singleOrder);
