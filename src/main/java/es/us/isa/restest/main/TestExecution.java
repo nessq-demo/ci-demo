@@ -10,19 +10,19 @@ import es.us.isa.restest.runners.RESTestRunner;
 import es.us.isa.restest.specification.OpenAPISpecification;
 import es.us.isa.restest.testcases.writers.IWriter;
 import es.us.isa.restest.testcases.writers.RESTAssuredWriter;
-import es.us.isa.restest.util.AllureAuthManager;
-import es.us.isa.restest.util.IDGenerator;
 import es.us.isa.restest.util.PropertyManager;
+import es.us.isa.restest.util.ReleaseManager;
 import es.us.isa.restest.util.Timer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import static es.us.isa.restest.configuration.TestConfigurationIO.loadConfiguration;
+import es.us.isa.restest.configuration.TestConfigurationIO;
 import static es.us.isa.restest.util.FileManager.createDir;
 import static es.us.isa.restest.util.FileManager.deleteDir;
 import static es.us.isa.restest.util.Timer.TestStep.ALL;
@@ -33,7 +33,7 @@ import static es.us.isa.restest.util.Timer.TestStep.ALL;
 public class TestExecution {
 
 	// Properties file with configuration settings
-	private static String propertiesFilePath = "src/test/resources/zycus_new/zycus.properties";
+	private static String propertiesFilePath;
 	private static Integer numTestCases; 								// Number of test cases per operation
 	private static Integer numGetTestCases; 								// Number of test cases per GET operation
 	
@@ -63,13 +63,33 @@ public class TestExecution {
 	// For AR Testing only:
 	private static String similarityMetric;								// The algorithm to measure the similarity between test cases
 	private static Integer numberCandidates;							// Number of candidate test cases per AR iteration
-	private static String jsonDir;
-	private static String testDir;
 	private static String testEnvironment; 
 	
 	private static Logger logger = LogManager.getLogger(TestExecution.class.getName());
 
-	public static void main(String[] args) throws Exception {
+	public static void main(String[] args) throws Exception 
+	{
+		testExecution(args);
+	}
+	
+	public static void testExecution(String[] args) throws Exception 
+	{
+	
+		// Read .properties file path. This file contains the configuration parameter
+		// for the generation
+		if (args != null && args.length > 0)
+		{
+			if(args[0] != null && args[0].length() > 0)
+			{
+				propertiesFilePath = "src/test/resources/zycus_new/"+args[0].trim();
+			}
+		}
+		else
+		{
+			propertiesFilePath = "src/test/resources/zycus_new/zycus.properties";
+		}
+		System.setProperty("zycus.properties", propertiesFilePath);
+
 		// Read parameter values from .properties file
 		readParameterValues();
 
@@ -78,115 +98,22 @@ public class TestExecution {
 
 
 		Timer.startCounting(ALL);
-		// Read .properties file path. This file contains the configuration parameter
-		// for the generation
-		if (args.length > 0)
-			propertiesFilePath = args[0];
-
-
-
-
+		
 		// RESTest runner
-		AbstractTestCaseGenerator generator = createGenerator(); // Test case generator
-		IWriter writer = createWriter(); // Test case writer
+		AbstractTestCaseGenerator generator = null; // Test case generator
+		IWriter writer = null; // Test case writer
 		StatsReportManager statsReportManager = createStatsReportManager(); // Stats reporter
 		AllureReportManager reportManager = createAllureReportManager(); // Allure test case reporter
 		RESTestRunner runner = new RESTestRunner(testClassName, targetDirJava, packageName, generator, writer,
 					reportManager, statsReportManager);
 		runner.setExecuteTestCases(executeTestCases);
 
-
-		// Main loop
-		int iteration = 1;
-
-
-			// Introduce optional delay
-			if (iteration != 1 && timeDelay != -1)
-				delay(timeDelay);
-
-			// Generate unique test class name to avoid the same class being loaded everytime
-			String id = IDGenerator.generateId();
-			String className = testClassName + "_" + id;
-			((RESTAssuredWriter) writer).setClassName(className);
-			((RESTAssuredWriter) writer).setTestId(id);
-			runner.setTestClassName(className);
-			runner.setTestId(id);
-
-			// Test case execution + test report generation
-			runner.execute();
-
-
-
+		// Test case execution + test report generation
+		runner.execute();
 		Timer.stopCounting(ALL);
 
-
 	}
 
-	// Create a test case generator
-	private static AbstractTestCaseGenerator createGenerator() {
-		// Load specification
-		spec = new OpenAPISpecification(OAISpecPath);
-
-		// Load configuration
-		TestConfigurationObject conf;
-
-		if(generator.equals("FT") && confPath == null) {
-			logger.info("No testConf specified. Generating one");
-			String[] args = {OAISpecPath};
-			CreateTestConf.main(args);
-
-			String specDir = OAISpecPath.substring(0, OAISpecPath.lastIndexOf('/'));
-			confPath = specDir + "/testConf.yaml";
-			logger.info("Created testConf in '{}'", confPath);
-		}
-
-		conf = loadConfiguration(confPath, spec);
-
-		// Create generator
-		AbstractTestCaseGenerator gen = null;
-
-		switch (generator) {
-		case "FT":
-			gen = new FuzzingTestCaseGenerator(spec, conf, numTestCases,numGetTestCases);
-			break;
-		case "RT":
-			gen = new RandomTestCaseGenerator(spec, conf, numTestCases, numGetTestCases);
-			((RandomTestCaseGenerator) gen).setFaultyRatio(faultyRatio);
-			break;
-		case "CBT":
-			gen = new ConstraintBasedTestCaseGenerator(spec, conf, numTestCases, numGetTestCases);
-			((ConstraintBasedTestCaseGenerator) gen).setFaultyDependencyRatio(faultyDependencyRatio);
-			((ConstraintBasedTestCaseGenerator) gen).setInputDataMaxValues(inputDataMaxValues);
-			((ConstraintBasedTestCaseGenerator) gen).setReloadInputDataEvery(reloadInputDataEvery);
-			gen.setFaultyRatio(faultyRatio);
-			break;
-		case "ART":
-			gen = new ARTestCaseGenerator(spec, conf, numTestCases, numGetTestCases);
-			((ARTestCaseGenerator) gen).setFaultyDependencyRatio(faultyDependencyRatio);
-			((ARTestCaseGenerator) gen).setInputDataMaxValues(inputDataMaxValues);
-			((ARTestCaseGenerator) gen).setReloadInputDataEvery(reloadInputDataEvery);
-			((ARTestCaseGenerator) gen).setDiversity(similarityMetric);
-			((ARTestCaseGenerator) gen).setNumberOfCandidates(numberCandidates);
-			gen.setFaultyRatio(faultyRatio);
-			break;
-		default:
-		}
-
-		return gen;
-	}
-
-	// Create a writer for RESTAssured
-	private static IWriter createWriter() {
-		//String basePath = spec.getSpecification().getServers().get(0).getUrl();
-		RESTAssuredWriter writer = new RESTAssuredWriter(OAISpecPath, targetDirJava, testClassName, packageName,
-				testEnvironment, logToFile);
-		writer.setLogging(true);
-		writer.setAllureReport(true);
-		writer.setEnableStats(enableCSVStats);
-		writer.setEnableOutputCoverage(enableOutputCoverage);
-		writer.setAPIName(experimentName);
-		return writer;
-	}
 
 	// Create an Allure report manager
 	private static AllureReportManager createAllureReportManager() {
@@ -202,8 +129,7 @@ public class TestExecution {
 			}
 
 			//Find auth property names (if any)
-			List<String> authProperties = AllureAuthManager.findAuthProperties(spec, confPath);
-
+			List<String> authProperties = new ArrayList<>();
 			arm = new AllureReportManager(allureResultsDir, allureReportDir, authProperties);
 			arm.setEnvironmentProperties(propertiesFilePath);
 			arm.setHistoryTrend(true);
@@ -230,33 +156,48 @@ public class TestExecution {
 				enableOutputCoverage, new CoverageMeter(new CoverageGatherer(spec)));
 	}
 
-	private static void generateTimeReport(Integer iterations) {
-		String timePath = readParameterValue("data.tests.dir") + "/" + experimentName + "/" + readParameterValue("data.tests.time");
-		try {
-			Timer.exportToCSV(timePath, iterations);
-		} catch (RuntimeException e) {
-			logger.error("The time report cannot be generated. Stack trace:");
-			logger.error(e.getMessage());
-		}
-		logger.info("Time report generated.");
-	}
-
-	/*
-	 * Stop the execution n seconds
-	 */
-	private static void delay(Integer time) {
-		try {
-			logger.info("Introducing delay of {} seconds", time);
-			TimeUnit.SECONDS.sleep(time);
-		} catch (InterruptedException e) {
-			logger.error("Error introducing delay", e);
-			logger.error(e.getMessage());
-			Thread.currentThread().interrupt();
-		}
-	}
-
 	// Read the parameter values from the .properties file. If the value is not found, the system looks for it in the global .properties file (config.properties)
 	private static void readParameterValues() throws Exception{
+		
+		boolean isCreateReleaseCases; 
+		String releaseName; 
+		boolean isExecuteReleaseCases; 
+		String productName;
+		
+		if(readParameterValue("create.release.testcases") != null)
+		{
+			isCreateReleaseCases = Boolean.parseBoolean(readParameterValue("create.release.testcases")); 
+		}
+		else
+		{
+			isCreateReleaseCases = false;
+		}
+		logger.info("create.release.testcases: {}", isCreateReleaseCases);
+		
+		if(readParameterValue("execute.release.testcases") != null)
+		{
+			isExecuteReleaseCases = Boolean.parseBoolean(readParameterValue("execute.release.testcases")); 
+		}
+		else
+		{
+			isExecuteReleaseCases = false;
+		}	
+		logger.info("execute.release.testcases: {}", isExecuteReleaseCases);
+		
+		releaseName =  readParameterValue("release.name");
+		logger.info("release.name: {}", releaseName);
+		
+		if(isCreateReleaseCases == true && releaseName == null)
+		{
+			throw new Exception("release.name Name can't be empty or null when create.release.testcases is true");
+		}
+		
+		productName = readParameterValue("product.name.in.api.uri");
+		
+		ReleaseManager.setProductName(productName);
+		ReleaseManager.setReleaseName(releaseName);
+		ReleaseManager.setCreateReleaseCases(isCreateReleaseCases);
+		ReleaseManager.setExecuteReleaseCases(isExecuteReleaseCases);
 
 		logToFile = Boolean.parseBoolean(readParameterValue("logToFile"));
 		if(logToFile) {
