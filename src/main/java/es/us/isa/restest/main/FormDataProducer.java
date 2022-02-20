@@ -272,7 +272,7 @@ public class FormDataProducer {
 		  String[] listofFiles = filesDir.list();
 		  Random rand = new Random();  
 		  int randomNo = rand.nextInt(listofFiles.length);
-		  return dir+File.separator+"files"+File.separator+listofFiles[randomNo];
+		  return dir+"/"+"files"+"/"+listofFiles[randomNo];
 		  
 	  }  
 	  	
