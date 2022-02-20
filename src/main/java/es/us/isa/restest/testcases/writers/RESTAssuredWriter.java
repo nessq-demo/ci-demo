@@ -71,6 +71,7 @@ public class RESTAssuredWriter implements IWriter {
 	private Set<String> coverage = new HashSet<String>();
 	
 	private boolean deDupe2ndLayer = false;
+	private boolean generateTestFlag = true;
 
 	private static final Logger logger = LogManager.getLogger(RESTAssuredWriter.class.getName());
 	
@@ -781,56 +782,57 @@ public class RESTAssuredWriter implements IWriter {
 		// Generate test method header
 		content += generateMethodHeader1(t,instance,count);
 
-		// Generate test case ID (only if stats enabled)
-		content += generateTestCaseId(t.getId());
+		if(generateTestFlag) {
+			// Generate test case ID (only if stats enabled)
+			content += generateTestCaseId(t.getId());
 
-		// Generate initialization of filters for those that need it
-		content += generateFiltersInitialization(t);
+			// Generate initialization of filters for those that need it
+			content += generateFiltersInitialization(t);
 
-		// Generate the start of the try block
-		content += generateTryBlockStart();
+			// Generate the start of the try block
+			content += generateTryBlockStart();
 
-		// Generate all stuff needed before the RESTAssured request
-		content += generatePreRequest(t);
-		
-		// Generate RESTAssured object pointing to the right path
-		content += generateRESTAssuredObject(t,count);
-		
-		// Generate header parameters
-		content += generateHeaderParameters(t);
-		
-		// Generate query parameters
-		content += generateQueryParameters(t);
-		
-		// Generate path parameters
-		content += generatePathParameters(t);
+			// Generate all stuff needed before the RESTAssured request
+			content += generatePreRequest(t);
 
-		//Generate form-data parameters
-		content += generateFormParameters(t);
+			// Generate RESTAssured object pointing to the right path
+			content += generateRESTAssuredObject(t, count);
 
-		// Generate body parameter
-		content += generateBodyParameter(t);
+			// Generate header parameters
+			content += generateHeaderParameters(t);
 
-		// Generate filters
-		content += generateFilters(t);
-		
-		// Generate HTTP request
-		content += generateHTTPRequest(t);
-		
-		// Generate basic response validation
-		//if(!OAIValidation)
+			// Generate query parameters
+			content += generateQueryParameters(t);
+
+			// Generate path parameters
+			content += generatePathParameters(t);
+
+			//Generate form-data parameters
+			content += generateFormParameters(t);
+
+			// Generate body parameter
+			content += generateBodyParameter(t);
+
+			// Generate filters
+			content += generateFilters(t);
+
+			// Generate HTTP request
+			content += generateHTTPRequest(t);
+
+			// Generate basic response validation
+			//if(!OAIValidation)
 //			content += generateResponseValidation(t);
 
-		// Generate all stuff needed after the RESTAssured response validation
-		content += generatePostResponseValidation(t);
+			// Generate all stuff needed after the RESTAssured response validation
+			content += generatePostResponseValidation(t);
 
-		// Generate the end of the try block, including its corresponding catch
-		content += generateTryBlockEnd();
-		
-		// Close test method
-		content += "\t}\n\n";
-		
-		
+			// Generate the end of the try block, including its corresponding catch
+			content += generateTryBlockEnd();
+
+			// Close test method
+			content += "\t}\n\n";
+		}
+		generateTestFlag=true;
 		return content;
 	}
 
@@ -851,6 +853,11 @@ public class RESTAssuredWriter implements IWriter {
 		String val = getDifferenceJSON(t);
 		String valCoverage = val;
 		val = val.replace("~~~", "");
+		
+		if(val.contains("/"))
+		{
+				val = val.replaceAll("/", "_");
+		}
 		
 		String endpoint = t.getPath();
 		endpoint = val+"_"+endpoint;
@@ -873,9 +880,10 @@ public class RESTAssuredWriter implements IWriter {
 			return annotation.replace(API_NAME,NEW_API_NAME);
 		}else {
 			if (display.contains(endpoint)) {
-				annotation = "\t//@Test\n" +
+				generateTestFlag=false;
+				annotation = "";/*"\t//@Test\n" +
 						"\t//@DisplayName(" + "\"" + API_NAME + "-" + val + "\"" + ") \n" +
-						"\tpublic void " + t.getId() + "() {\n";
+						"\t//public void " + t.getId() + "() {\n";*/
 			}
 		}
 		display.add(endpoint);
@@ -888,8 +896,8 @@ public class RESTAssuredWriter implements IWriter {
 		String content = "";
 
 		if (enableStats || enableOutputCoverage) {
-			content += "\t\tString testResultId = \"" + testCaseId + "\";\n" +
-					   "\t\t//delay(1);\n" ;
+			content += "\t\tString testResultId = \"" + testCaseId + "\";\n";
+					  // "\t\t//delay(1);\n" ;
 		}
 
 		return content;
