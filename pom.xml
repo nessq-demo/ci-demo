@@ -5,13 +5,21 @@
 
 	<groupId>es.us.isa</groupId>
 	<artifactId>restest</artifactId>
-	<version>1.0.1-SNAPSHOT</version>
+	<version>1.0.2-SNAPSHOT</version>
 	<packaging>jar</packaging>
 
 	<name>RESTest</name>
 	<description>A framework for automated black-box testing of RESTful web APIs</description>
-	<url>https://github.com/isa-group/RESTest</url>
+	<url>https:maven-//github.com/isa-group/RESTest</url>
 	<repositories>
+		<repository>
+			<snapshots>
+				<enabled>true</enabled>
+			</snapshots>
+			<id>central1</id>
+			<name>maven-public</name>
+			<url>http://10.95.4.152/repository/maven-public/</url>
+		</repository>
 		<repository>
 			<id>zycus.docket</id>
 			<url>http://10.95.4.152/repository/zycus.docket</url>
@@ -34,19 +42,13 @@
 		</repository>
 		<repository>
 			<id>local.zycus.dependencies-snapshots</id>
-			<url>http://artifactrepo.zycus.net/nexus/repository/zycus.dependencies-snapshots/</url>
+			<url>http://artifactrepo.zycus.net/nexus/repository/zmaven-ycus.dependencies-snapshots/</url>
 		</repository>
 		<repository>
 			<id>local.zycus.dependencies</id>
 			<url>http://artifactrepo.zycus.net/nexus/repository/zycus.dependencies/</url>
 		</repository>
-		<repository>
-			<id>maven.central</id>
-			<url>https://repo1.maven.org/maven2/</url>
-		</repository>
-
 	</repositories>
-
 
 	<licenses>
 		<license>
@@ -143,13 +145,20 @@
 		<sonar.organization>isa-group</sonar.organization>
 		<sonar.host.url>https://sonarcloud.io</sonar.host.url>
 		<junit.jupiter.version>5.8.1</junit.jupiter.version>
-    <junit.platform.version>1.8.1</junit.platform.version>
+		<junit.platform.version>1.8.1</junit.platform.version>
 
 		<argLine />
 	</properties>
 
 
 	<dependencies>
+
+		<!-- https://mvnrepository.com/artifact/org.eclipse.jgit/org.eclipse.jgit -->
+		<dependency>
+			<groupId>org.eclipse.jgit</groupId>
+			<artifactId>org.eclipse.jgit</artifactId>
+			<version>6.0.0.202111291000-r</version>
+		</dependency>
 
 		<!-- https://mvnrepository.com/artifact/com.jayway.jsonpath/json-path -->
 		<dependency>
@@ -242,31 +251,14 @@
 			<version>4.13.1</version>
 		</dependency>
 
- 	<!--   <dependency>
-        <groupId>org.junit.jupiter</groupId>
-        <artifactId>junit-jupiter-engine</artifactId>
-        <version>${junit.jupiter.version}</version>
-        <scope>test</scope>
-    </dependency>
-    <dependency>
-        <groupId>org.junit.jupiter</groupId>
-        <artifactId>junit-jupiter-api</artifactId>
-        <version>${junit.jupiter.version}</version>
-        <scope>test</scope>
-    </dependency>
-    <dependency>
-        <groupId>org.junit.jupiter</groupId>
-        <artifactId>junit-jupiter-params</artifactId>
-        <version>${junit.jupiter.version}</version>
-        <scope>test</scope>
-    </dependency>
-    <dependency>
-        <groupId>org.junit.platform</groupId>
-        <artifactId>junit-platform-suite</artifactId>
-        <version>${junit.platform.version}</version>
-        <scope>test</scope>
-    </dependency>
- -->
+		<!-- <dependency> <groupId>org.junit.jupiter</groupId> <artifactId>junit-jupiter-engine</artifactId> 
+			<version>${junit.jupiter.version}</version> <scope>test</scope> </dependency> 
+			<dependency> <groupId>org.junit.jupiter</groupId> <artifactId>junit-jupiter-api</artifactId> 
+			<version>${junit.jupiter.version}</version> <scope>test</scope> </dependency> 
+			<dependency> <groupId>org.junit.jupiter</groupId> <artifactId>junit-jupiter-params</artifactId> 
+			<version>${junit.jupiter.version}</version> <scope>test</scope> </dependency> 
+			<dependency> <groupId>org.junit.platform</groupId> <artifactId>junit-platform-suite</artifactId> 
+			<version>${junit.platform.version}</version> <scope>test</scope> </dependency> -->
 		<!-- Allure Junit 4 -->
 		<dependency>
 			<groupId>io.qameta.allure</groupId>
@@ -357,21 +349,21 @@
 		<dependency>
 			<groupId>org.apache.logging.log4j</groupId>
 			<artifactId>log4j-api</artifactId>
-			<version>2.15.0</version>
+			<version>2.16.0</version>
 		</dependency>
 
 		<!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-core -->
 		<dependency>
 			<groupId>org.apache.logging.log4j</groupId>
 			<artifactId>log4j-core</artifactId>
-			<version>2.15.0</version>
+			<version>2.16.0</version>
 		</dependency>
 
 		<!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-iostreams -->
 		<dependency>
 			<groupId>org.apache.logging.log4j</groupId>
 			<artifactId>log4j-iostreams</artifactId>
-			<version>2.15.0</version>
+			<version>2.16.0</version>
 		</dependency>
 
 		<!-- Java tuples -->
@@ -452,16 +444,13 @@
 	<build>
 		<resources>
 			<resource>
-				<directory>src/main/resources</directory>
-				<includes>
-					<include>**/*</include>
-				</includes>
-			</resource>
-			<resource>
-				<directory>src/test/resources</directory>
-				<includes>
-					<include>**/*</include>
-				</includes>
+				<targetPath>META-INF/zycus</targetPath>
+				<directory>${project.basedir}/src</directory>
+				<excludes>
+					<exclude>generation/**</exclude>
+					<exclude>test/**</exclude>
+					<exclude>main/resources/**</exclude>
+				</excludes>
 			</resource>
 			<resource>
 				<directory>allure</directory>
@@ -470,8 +459,6 @@
 				</includes>
 			</resource>
 		</resources>
-
-
 		<plugins>
 			<plugin>
 				<artifactId>maven-compiler-plugin</artifactId>
@@ -493,9 +480,10 @@
 					</descriptorRefs>
 					<archive>
 						<manifest>
-							<mainClass>es.us.isa.restest.main.TestGenerationAndExecution</mainClass>
+							<mainClass>es.us.isa.restest.main.Restest</mainClass>
 						</manifest>
 					</archive>
+					
 				</configuration>
 			</plugin>
 			<plugin>
@@ -538,65 +526,6 @@
 					<reportVersion>2.13.3</reportVersion>
 				</configuration>
 			</plugin>
-			<plugin>
-				<groupId>org.jacoco</groupId>
-				<artifactId>jacoco-maven-plugin</artifactId>
-				<version>0.8.5</version>
-				<executions>
-					<execution>
-						<id>prepare-agent</id>
-						<goals>
-							<goal>prepare-agent</goal>
-						</goals>
-					</execution>
-					<execution>
-						<id>report</id>
-						<goals>
-							<goal>report</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
-				<groupId>org.sonatype.plugins</groupId>
-				<artifactId>nexus-staging-maven-plugin</artifactId>
-				<version>1.6.8</version>
-				<extensions>true</extensions>
-				<configuration>
-					<serverId>ossrh</serverId>
-					<nexusUrl>https://oss.sonatype.org/</nexusUrl>
-					<autoReleaseAfterClose>true</autoReleaseAfterClose>
-				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-source-plugin</artifactId>
-				<version>3.2.1</version>
-				<executions>
-					<execution>
-						<id>attach-sources</id>
-						<goals>
-							<goal>jar-no-fork</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-javadoc-plugin</artifactId>
-				<version>3.2.0</version>
-				<executions>
-					<execution>
-						<id>attach-javadocs</id>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-
-
 		</plugins>
 	</build>
-
 </project>
