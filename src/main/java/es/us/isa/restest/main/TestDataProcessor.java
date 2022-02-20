@@ -38,6 +38,10 @@ public class TestDataProcessor {
 	
 	public static void main(String args[]) throws Exception
 	{
+		testDataProcessor();
+	}
+	public static void testDataProcessor() throws Exception
+	{
 		String stestDataDir = PropertyManager.readProperty("testdata.dir");
 		String processDir = PropertyManager.readProperty("process.dir");
 		
