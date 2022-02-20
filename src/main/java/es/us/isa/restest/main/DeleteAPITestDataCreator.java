@@ -6,6 +6,7 @@ import es.us.isa.restest.specification.OpenAPISpecification;
 import es.us.isa.restest.util.*;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -14,6 +15,7 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.cookie.Cookie;
 import org.apache.http.entity.StringEntity;
+import org.apache.http.entity.mime.MultipartEntityBuilder;
 import org.apache.http.impl.client.BasicCookieStore;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
@@ -71,6 +73,7 @@ public class DeleteAPITestDataCreator {
 	private static String postAPIName;
 	private static String fieldPathInPOSTAPI;
 	private static String fieldNameInPOSTAPI;
+	private static String type;
 	
 	private static boolean debug = true;
 	
@@ -78,7 +81,13 @@ public class DeleteAPITestDataCreator {
 	private static ArrayList<String> errors = new ArrayList<String>(); 
 	private static ArrayList<String> successes = new ArrayList<String>(); 
 	
+	
 	public static void main(String[] args)
+	{
+		createDeleteAPITestData();
+	}
+	
+	public static void createDeleteAPITestData()
 	{
 		//System.out.println("*********** Test Data Preparation for DELETE APIs - STARTS  ********");
 		
@@ -145,12 +154,48 @@ public class DeleteAPITestDataCreator {
 	    	deleteAPIName = (String) node.get("delete-api-name");
 	    	
 	    	testParameter = getTestParameter(deleteAPIName);
-	    	postAPIName = (String) node.get("post-api-name");
+	    	
+	    	type = (String) node.get("type");
+    		postAPIName = (String) node.get("post-api-name");
 	    	fieldNameInPOSTAPI = (String) node.get("field-name-in-post-api");
 	    	fieldPathInPOSTAPI = (String) node.get("field-name-path");
-	    	
-	    	String param = getPathParam(postAPIName, fieldNameInPOSTAPI, fieldPathInPOSTAPI);
-	    	
+
+	    	String param;
+	    	if(type == null)
+	    	{
+		    	param = getPathParam(postAPIName, fieldNameInPOSTAPI, fieldPathInPOSTAPI);
+		    	
+	    	}
+	    	else 
+	    	{
+	    		JSONObject formData = (JSONObject) node.get("form-data");
+	    		JSONArray headers = (JSONArray) formData.get("headers");
+	    		JSONArray fields = (JSONArray) formData.get("multipart-fields");
+	    		HashMap<String, String> sHeaders = new HashMap<>();
+	    		HashMap<String, String> sFields = new HashMap<>();
+	    		for(int k = 0; k< headers.size(); k++)
+	    		{
+	    			String header = (String) headers.get(k);
+	    			String[] _header = header.split(":");
+	    			sHeaders.put(_header[0].replaceAll("\\\"", ""), _header[1].replaceAll("\\\"", ""));
+	    		}
+	    		
+	    		for(int x = 0; x< fields.size(); x++)
+	    		{
+	    			String field = (String) fields.get(x);
+	    			String[] _field = field.split(":");
+	    			String fieldName = _field[1].replaceAll("\\\"", "");
+	    			if(fieldName.trim().equals("file"))
+	    			{
+	    				fieldName = readFileName(fieldName);
+	    			}
+	    			sFields.put(_field[0].replaceAll("\\\"", ""), fieldName);
+	    		}	
+	    		
+	    		param = getPathParam(postAPIName, fieldNameInPOSTAPI, fieldPathInPOSTAPI, sHeaders, sFields);
+		    	
+	    	}
+	    		
 	    	if(param == null)
 	    	{
 	    		continue;
@@ -251,7 +296,6 @@ public class DeleteAPITestDataCreator {
 		headers.put("Content-Type", "application/json");
 		headers.put("Cookie",cookieString);
 		
-
 		HttpResponse response = doPost(testEnvironment+postAPIName, headers, postBody);
 		String sResponse = EntityUtils.toString(response.getEntity());
 
@@ -286,7 +330,53 @@ public class DeleteAPITestDataCreator {
 	    
 	}
 	
+	public static String getPathParam(String postAPIName, String field, String path, HashMap<String, String> _headers, HashMap<String, String> fields) throws Exception
+	{
+		
+		
+		HashMap<String, String> headers = new HashMap<String, String>();
+		headers.putAll(_headers);
+		String cookieString = saasTokenName+"="+sassToken;
+		if(debug)
+			System.out.println("Cookie STRING = "+cookieString);
+		//headers.put("Content-Type", "multipart/form-data");
+		headers.put("Cookie",cookieString);
+		
+		HttpResponse response = doMultipartPost(testEnvironment+postAPIName, headers, fields);
+		String sResponse = EntityUtils.toString(response.getEntity());
+
+		
+		if(response.getStatusLine().getStatusCode() != 200)
+		{
+			throw new Exception("POST API - "+testEnvironment+postAPIName+" Failed - Status is "+response.getStatusLine().toString()+" - Response is "+sResponse);
+		}
+		
+	    ObjectMapper objectMapper = new ObjectMapper();
+	    JsonNode jsonNode = objectMapper.readTree(sResponse);
+	    
+	    if(debug)
+	    	System.out.println("Response ----\n"+sResponse);
+        
+	    String param = null;
+	    
+	    JsonNode dataNode = jsonNode.at(path);
+	    
+	    if(!dataNode.isMissingNode())
+	    {
+	    	param = jsonNode.at(path).asText();
+	    }
+	    else
+	    {
+	    	
+	    	errors.add("Failed to create Test Data File : Path \""+path+"\" for the field \""+field+"\" in the post API \""+postAPIName+"\" is incorrect");
+	    	return null;
+	    }
+	    
+	    return param;
+	    
+	}
 	
+
 	public static String readTestData(String fileName) throws Exception
 	{
 		StringBuilder resultStringBuilder = new StringBuilder();
@@ -314,6 +404,38 @@ public class DeleteAPITestDataCreator {
 		return resultStringBuilder.toString();
 	}
 	
+	public static String readFileName(String fileName) throws Exception
+	{
+		StringBuilder resultStringBuilder = new StringBuilder();
+		BufferedReader br = null;
+		int lineNumber=0;
+		try
+		{
+			br = new BufferedReader(new InputStreamReader(new FileInputStream(new File(workingDir+"/files"+fileName))));
+		    {
+		        String line;
+		        while ((line = br.readLine()) != null) 
+		        {
+		        	if(lineNumber ==1)
+		        	{
+		        		break;
+		        	}
+		            resultStringBuilder.append(line);
+		            lineNumber++;
+		        }
+		    }
+		}
+		catch(IOException e)
+		{
+			e.printStackTrace();
+		}
+		finally 
+		{
+			br.close();
+		}
+		
+		return resultStringBuilder.toString();
+	}
 
 	public static void deleteNotification()
 	{
@@ -467,7 +589,62 @@ public class DeleteAPITestDataCreator {
 		return response;
 
 	}
-		// Read the parameter values from the .properties file. If the value is not found, the system looks for it in the global .properties file (config.properties)
+
+	public static HttpResponse doMultipartPost(String url, HashMap<String,String> headers, HashMap<String,String> fields)
+	{
+		String result=null;
+		HttpResponse response = null;
+		try
+		{
+			HttpPost post = new HttpPost(url);
+			if(debug)
+			{
+				System.out.println(url);
+				
+			}
+			
+			MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+			String key;
+			String value;
+			for(Map.Entry<String,String> field : fields.entrySet())
+			{
+				key = field.getKey();
+				value = field.getValue();
+				
+				if(key !=null && key.equals("file"))
+				{
+					File file = new File(workingDir+"/files/"+value);
+					builder.addBinaryBody("file", file);
+				}
+				else
+				{
+					builder.addTextBody(key, value);
+				}
+						
+			}
+			HttpEntity entity = builder.build();
+			post.setEntity(entity);
+			
+			for(Map.Entry<String,String> entry : headers.entrySet())
+			{
+				post.addHeader(entry.getKey(),entry.getValue());
+			}
+			
+			BasicCookieStore cookieStore = new BasicCookieStore();
+			HttpClient httpClient = HttpClientBuilder.create().setDefaultCookieStore(cookieStore).build();
+			response = httpClient.execute(post);
+		}
+		catch(Exception e)
+		{
+			e.printStackTrace();
+		}
+		
+		return response;
+
+	}
+
+	
+	// Read the parameter values from the .properties file. If the value is not found, the system looks for it in the global .properties file (config.properties)
 	private static void readParameterValues() {
 
 
