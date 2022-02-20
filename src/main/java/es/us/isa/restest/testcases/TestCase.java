@@ -663,4 +663,4 @@ public class TestCase implements Serializable {
 		public void setTestdataBeforeModification(String testdataBeforeModification) {
 			this.testdataBeforeModification = testdataBeforeModification;
 		}
-}	
+}
