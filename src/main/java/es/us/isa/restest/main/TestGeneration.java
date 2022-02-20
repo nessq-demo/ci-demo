@@ -10,19 +10,28 @@ import es.us.isa.restest.runners.RESTestRunner;
 import es.us.isa.restest.specification.OpenAPISpecification;
 import es.us.isa.restest.testcases.writers.IWriter;
 import es.us.isa.restest.testcases.writers.RESTAssuredWriter;
-import es.us.isa.restest.util.AllureAuthManager;
-import es.us.isa.restest.util.IDGenerator;
-import es.us.isa.restest.util.PropertyManager;
-import es.us.isa.restest.util.Timer;
+
+import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+
+import es.us.isa.restest.util.*;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static es.us.isa.restest.configuration.TestConfigurationIO.loadConfiguration;
+import static es.us.isa.restest.util.FileManager.checkIfExists;
 import static es.us.isa.restest.util.FileManager.createDir;
 import static es.us.isa.restest.util.FileManager.deleteDir;
 import static es.us.isa.restest.util.Timer.TestStep.ALL;
@@ -33,7 +42,7 @@ import static es.us.isa.restest.util.Timer.TestStep.ALL;
 public class TestGeneration {
 
 	// Properties file with configuration settings
-	private static String propertiesFilePath = "src/test/resources/zycus_new/zycus.properties";
+	private static String propertiesFilePath; 
 	private static Integer numTestCases; 								// Number of test cases per operation
 	private static Integer numGetTestCases; 								// Number of test cases per GET operation
 	
@@ -69,8 +78,34 @@ public class TestGeneration {
 	private static String testEnvironment; 
 	
 	private static Logger logger = LogManager.getLogger(TestGeneration.class.getName());
+	
+	private static boolean isBitbucketCommit = false;
+	private static String bitbucketURL; 
+	private static String branchName; 
+	private static String checkoutDir; 
 
-	public static void main(String[] args) throws Exception {
+	public static void main(String[] args) throws Exception 
+	{
+		testGeneration(args);
+	}
+	
+	public static void testGeneration(String[] args) throws Exception 
+	{
+		// Read .properties file path. This file contains the configuration parameter
+		// for the generation
+		if (args != null && args.length > 0)
+		{
+			if(args[0] != null && args[0].length() > 0)
+			{
+				propertiesFilePath = "src/test/resources/zycus_new/"+args[0].trim();
+			}
+		}
+		else
+		{
+			propertiesFilePath = "src/test/resources/zycus_new/zycus.properties";
+		}
+		System.setProperty("zycus.properties", propertiesFilePath);
+		
 		// Read parameter values from .properties file
 		readParameterValues();
 
@@ -78,17 +113,32 @@ public class TestGeneration {
 		//DeleteAPITestDataCreator.createTestDataForDeleteAPIs();
 		
 		Timer.startCounting(ALL);
+		
+		String originalTestDir = targetDirJava;
+		if(ReleaseManager.isCreateReleaseCases())
+		{
+			targetDirJava = targetDirJava+"/"+ReleaseManager.getParentDir()+"/"+ReleaseManager.getReleaseName();
+			if(new File(targetDirJava).exists())
+			{
+				deleteDir(targetDirJava);
+			}
+		}
+
 		jsonDir = targetDirJava+"/TestJSON";
 		testDir = targetDirJava+"/Test";
-		// Read .properties file path. This file contains the configuration parameter
-		// for the generation
-		if (args.length > 0)
-			propertiesFilePath = args[0];
-
+		
 		// Create target directory if it does not exists
 		createDir(targetDirJava);
-		deleteDir(jsonDir);
-		createDir(jsonDir);
+		if(ReleaseManager.isCreateReleaseCases())
+		{
+			createDir(jsonDir);
+		}
+		else
+		{
+			// Create target directory if it does not exists
+			deleteDir(jsonDir);
+			createDir(jsonDir);
+		}
 		createDir(testDir);
 
 		// RESTest runner
@@ -111,7 +161,18 @@ public class TestGeneration {
 
 			// Generate unique test class name to avoid the same class being loaded everytime
 			String id = IDGenerator.generateId();
-			String className = testClassName + "_" + id;
+			String className;
+
+			if(ReleaseManager.isCreateReleaseCases())
+			{
+				className = getReleaseDir();
+			}
+			else
+			{
+				className = testClassName + "_" + id;
+				
+			}
+			
 			((RESTAssuredWriter) writer).setClassName(className);
 			((RESTAssuredWriter) writer).setTestId(id);
 			runner.setTestClassName(className);
@@ -127,8 +188,117 @@ public class TestGeneration {
 		Timer.stopCounting(ALL);
 
 		generateTimeReport(iteration-1);
+		
+		if(ReleaseManager.isCreateReleaseCases())
+		{
+		
+			createReleaseXls(originalTestDir+"/"+ReleaseManager.getParentDir());
+			
+			if(isBitbucketCommit == true)
+			{
+				if(bitbucketURL!= null && branchName!= null && checkoutDir!= null)
+				{
+					BitBucket bitBucket = new BitBucket(bitbucketURL, branchName, checkoutDir, ReleaseManager.getReleaseName(), originalTestDir);
+					bitBucket.checkInReleaseTestCases();
+				}
+				else
+				{
+					logger.info("=================================================================================");
+					logger.info("Release Test cases NOT CHECKED in Bitbucket because Required Details are missing.");
+					logger.info("=================================================================================");
+							
+				}
+			}
+		}
+		
 	}
 
+	private static void createReleaseXls(String releaseDir)
+	{
+		
+		ArrayList<String> releases = getReleaseTests(releaseDir);
+		
+		String file = releaseDir+"/releases.xlsx";
+		String sheetName = "releases";
+		try 
+		{
+			boolean flag=checkIfExists(file);
+			if(!flag) {
+				XSSFWorkbook wb = new XSSFWorkbook();
+				File excel = new File(file);
+				FileOutputStream out = new FileOutputStream(excel);
+				wb.write(out);
+			}
+			
+			Xls_Reader xls = new Xls_Reader(file);
+			if(!flag) {
+				xls.addSheet(sheetName);
+				xls.addColumn(sheetName, "ReleaseName");
+				xls.addColumn(sheetName, "Execute");
+			}
+			
+			Iterator<String> it = releases.iterator();
+			String val;
+			while(it.hasNext())
+			{
+				val = it.next();
+				boolean f = false;
+				
+				for(int i=2;i<=xls.getRowCount(sheetName);i++)
+				{
+					if(xls.getCellData(sheetName,"ReleaseName",i).equals(val))
+					{
+						f=true;
+					}
+				}
+				
+				int row = xls.getRowCount(sheetName)+1;
+				if(!f) 
+				{
+					xls.setCellData(sheetName, "ReleaseName", row, val);
+					xls.setCellData(sheetName, "Execute", row, "Y");
+				}
+			}
+
+
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	private static ArrayList<String> getReleaseTests(String sReleaseDir)
+	{
+		File releaseDir = new File(sReleaseDir);
+		ArrayList<String> releases = new ArrayList<>();
+		String[] extensions = new String[] {"java"};
+		if(releaseDir.exists())
+		{	
+			Collection<File> files = FileUtils.listFiles( releaseDir , extensions, true);
+			for (File file : files) 
+			{
+	            releases.add(file.getName().substring(file.getName().indexOf("_")+1, file.getName().indexOf(".")));
+			}    
+		}
+		
+		return releases;
+	}
+	
+	private static String getCurrentDate()
+	{
+		SimpleDateFormat dateFormat = new SimpleDateFormat("ddMMMYYYY_hhmmss");
+		Calendar cal = Calendar.getInstance();
+		return dateFormat.format(cal.getTime());
+		
+	}
+	
+	
+	private static String getReleaseDir()
+	{
+		
+		//return ReleaseManager.getProductName().toUpperCase()+"_"+ReleaseManager.getReleaseName().toUpperCase()+"_"+ReleaseManager.getCurrentDateAndTime().toUpperCase();
+		return ReleaseManager.getProductName().toUpperCase()+"_"+ReleaseManager.getReleaseName();
+	}
+	
 	// Create a test case generator
 	private static AbstractTestCaseGenerator createGenerator() {
 		
@@ -274,8 +444,95 @@ public class TestGeneration {
 	}
 
 	// Read the parameter values from the .properties file. If the value is not found, the system looks for it in the global .properties file (config.properties)
-	private static void readParameterValues() throws Exception{
+	private static void readParameterValues() throws Exception
+	{
+		boolean isCreateReleaseCases; 
+		String releaseName; 
+		boolean isExecuteReleaseCases; 
+		String productName;
+		
+		if(readParameterValue("create.release.testcases") != null)
+		{
+			isCreateReleaseCases = Boolean.parseBoolean(readParameterValue("create.release.testcases")); 
+		}
+		else
+		{
+			isCreateReleaseCases = false;
+		}
+		logger.info("create.release.testcases: {}", isCreateReleaseCases);
+		
+		if(readParameterValue("execute.release.testcases") != null)
+		{
+			isExecuteReleaseCases = Boolean.parseBoolean(readParameterValue("execute.release.testcases")); 
+		}
+		else
+		{
+			isExecuteReleaseCases = false;
+		}	
+		logger.info("execute.release.testcases: {}", isExecuteReleaseCases);
+		
+		releaseName =  readParameterValue("release.name");
+		logger.info("release.name: {}", releaseName);
+		
+		if(isCreateReleaseCases == true && releaseName == null)
+		{
+			throw new Exception("release.name Name can't be empty or null when create.release.testcases is true");
+		}
+		
+		productName = readParameterValue("product.name.in.api.uri");
+		
+		ReleaseManager.setProductName(productName);
+		ReleaseManager.setReleaseName(releaseName);
+		ReleaseManager.setCreateReleaseCases(isCreateReleaseCases);
+		ReleaseManager.setExecuteReleaseCases(isExecuteReleaseCases);
+		ReleaseManager.setCurrentDateAndTime(getCurrentDate());
+		
+		if(readParameterValue("commit.bitbucket") != null)
+		{
+			isBitbucketCommit = Boolean.parseBoolean(readParameterValue("commit.bitbucket")); 
+		}
+		else
+		{
+			isBitbucketCommit = false;
+		}
+		logger.info("commit.bitbucket: {}", isCreateReleaseCases);
+		
+		bitbucketURL = readParameterValue("repo.uri.with.creds");
+		
+		if(isBitbucketCommit)
+		{
+			if(bitbucketURL == null)
+			{
+				logger.info("================================================================================");
+				logger.info("BitBucket URL can't be null when BitBucket commit is 'true'");
+				logger.info("=================================================================================");
+				System.exit(-1);
+			}
+		}
+		branchName = readParameterValue("branch.name");
+		if(isBitbucketCommit)
+		{
+			if(branchName == null)
+			{
+				logger.info("================================================================================");
+				logger.info("BitBucket Branch Name can't be null when BitBucket commit is 'true'");
+				logger.info("=================================================================================");
+				System.exit(-1);
+			}
+		}
+		checkoutDir = readParameterValue("checkout.dir");
+		if(isBitbucketCommit)
+		{
+			if(checkoutDir == null)
+			{
+				logger.info("================================================================================");
+				logger.info("BitBucket CheckoutDir can't be null when BitBucket commit is 'true'");
+				logger.info("=================================================================================");
+				System.exit(-1);
 
+			}
+		}
+		
 		logToFile = Boolean.parseBoolean(readParameterValue("logToFile"));
 		if(logToFile) {
 			setUpLogger();
