@@ -19,6 +19,7 @@ public class TestCaseMutation {
 	private static final String INVALID_VALUE = "INVALID_VALUE";
 	private static final String REMOVE_REQUIRED_PARAMETER = "REMOVE_REQUIRED_PARAMETER";
 	private static final String[] mutationOperators= {INVALID_VALUE, REMOVE_REQUIRED_PARAMETER};
+
 	
 
     /**
@@ -44,7 +45,7 @@ public class TestCaseMutation {
 		
 		int index = 0;
 		while (index<operators.size() && mutationApplied.equals("")) {
-			switch(operators.get(index)) {
+			switch(operators.get(0)) {
 				case INVALID_VALUE:
 					mutationApplied = InvalidParameterValue.mutate(testCase, specOperation);
 					break;
@@ -55,7 +56,6 @@ public class TestCaseMutation {
 			}
 			index++;		
 		}
-		
 		return mutationApplied;
 	}
 	
